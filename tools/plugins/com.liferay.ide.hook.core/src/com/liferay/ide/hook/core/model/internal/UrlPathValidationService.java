@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -18,11 +18,11 @@
 package com.liferay.ide.hook.core.model.internal;
 
 import org.eclipse.osgi.util.NLS;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.Value;
+import org.eclipse.sapphire.ValueProperty;
 import org.eclipse.sapphire.modeling.CapitalizationType;
-import org.eclipse.sapphire.modeling.IModelElement;
 import org.eclipse.sapphire.modeling.Status;
-import org.eclipse.sapphire.modeling.Value;
-import org.eclipse.sapphire.modeling.ValueProperty;
 import org.eclipse.sapphire.services.ValidationService;
 
 /**
@@ -36,11 +36,11 @@ public class UrlPathValidationService extends ValidationService
      * @see org.eclipse.sapphire.services.ValidationService#validate()
      */
     @Override
-    public Status validate()
+    public Status compute()
     {
         final ValueProperty valueProperty = context( ValueProperty.class );
-        final Value<?> value = context( IModelElement.class ).read( valueProperty );
-        final String urlPath = value.getText();
+        final Value<?> value = context( Element.class ).property( valueProperty );
+        final String urlPath = value.text();
         if( urlPath != null && !urlPath.startsWith( "/" ) ) //$NON-NLS-1$
         {
             return Status.createErrorStatus( Resources.bind(

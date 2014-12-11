@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -18,17 +18,19 @@ package com.liferay.ide.service.core.operation;
 import static com.liferay.ide.core.util.CoreUtil.empty;
 
 import com.liferay.ide.core.ILiferayConstants;
+import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.ide.service.core.AddServiceBuilderOperation;
 import com.liferay.ide.service.core.ServiceCore;
 import com.liferay.ide.service.core.util.ServiceUtil;
 
 import java.util.List;
 import java.util.Set;
 
-import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IStatus;
@@ -44,7 +46,7 @@ import org.eclipse.jst.j2ee.internal.common.operations.INewJavaClassDataModelPro
 import org.eclipse.jst.j2ee.internal.project.J2EEProjectUtilities;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.wst.common.componentcore.internal.operation.ArtifactEditOperationDataModelProvider;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
+import org.eclipse.wst.common.frameworks.datamodel.IDataModelOperation;
 import org.eclipse.wst.common.frameworks.internal.plugin.WTPCommonPlugin;
 
 /**
@@ -59,6 +61,12 @@ public class NewServiceBuilderDataModelProvider extends ArtifactEditOperationDat
     public NewServiceBuilderDataModelProvider()
     {
         super();
+    }
+
+    @Override
+    public IDataModelOperation getDefaultOperation()
+    {
+        return new AddServiceBuilderOperation( getDataModel() );
     }
 
     @Override
@@ -452,22 +460,13 @@ public class NewServiceBuilderDataModelProvider extends ArtifactEditOperationDat
         }
 
         // IDE-110 IDE-648
-        IVirtualFolder webappRoot = CoreUtil.getDocroot( getTargetProject() );
+        final IResource serviceXmlResource =
+            LiferayCore.create( getTargetProject() ).findDocrootResource(
+                new Path( "WEB-INF/" + serviceFileProperty ) );
 
-        if( webappRoot != null )
+        if( serviceXmlResource != null && serviceXmlResource.exists() && serviceXmlResource instanceof IFile )
         {
-            IVirtualFolder webInfFolder = webappRoot.getFolder( "WEB-INF" ); //$NON-NLS-1$
-
-            if( webInfFolder != null )
-            {
-                for( IContainer container : webInfFolder.getUnderlyingFolders() )
-                {
-                    if( container != null && container.exists() )
-                    {
-                        return container.getFile( new Path( serviceFileProperty ) );
-                    }
-                }
-            }
+            return (IFile) serviceXmlResource;
         }
 
         return null;

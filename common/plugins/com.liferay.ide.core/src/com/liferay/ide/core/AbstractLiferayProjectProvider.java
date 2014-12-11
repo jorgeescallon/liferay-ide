@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -14,18 +14,44 @@
  *******************************************************************************/
 package com.liferay.ide.core;
 
+import java.util.Collections;
+import java.util.List;
 
 /**
  * @author Gregory Amerson
  */
-public abstract class AbstractLiferayProjectProvider implements ILiferayProjectProvider
+public abstract class AbstractLiferayProjectProvider
+    implements ILiferayProjectProvider, Comparable<ILiferayProjectProvider>
 {
-    private Class<?> classType;
+    private Class<?>[] classTypes;
+    private String displayName;
+    private boolean isDefault;
     private int priority;
+    private String shortName;
 
-    public AbstractLiferayProjectProvider( Class<?> type )
+    public AbstractLiferayProjectProvider( Class<?>[] types )
     {
-        this.classType = type;
+        this.classTypes = types;
+    }
+
+    public int compareTo( ILiferayProjectProvider provider )
+    {
+        if( provider != null )
+        {
+            return this.shortName.compareTo( provider.getShortName() );
+        }
+
+        return 0;
+    }
+
+    public <T> List<T> getData( String key, Class<T> type, Object... params )
+    {
+        return Collections.emptyList();
+    }
+
+    public String getDisplayName()
+    {
+        return this.displayName;
     }
 
     public int getPriority()
@@ -33,13 +59,49 @@ public abstract class AbstractLiferayProjectProvider implements ILiferayProjectP
         return this.priority;
     }
 
+    public String getShortName()
+    {
+        return this.shortName;
+    }
+
+    public boolean isDefault()
+    {
+        return this.isDefault;
+    }
+
     public boolean provides( Class<?> type )
     {
-        return type != null && classType.isAssignableFrom( type );
+        if( type != null )
+        {
+            for( Class<?> classType : classTypes )
+            {
+                if( classType.isAssignableFrom( type ) )
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public void setDefault( boolean isDefault )
+    {
+        this.isDefault = isDefault;
+    }
+
+    public void setDisplayName( String displayName )
+    {
+        this.displayName = displayName;
     }
 
     public void setPriority( int priority )
     {
         this.priority = priority;
+    }
+
+    public void setShortName( String shortName )
+    {
+        this.shortName = shortName;
     }
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -11,33 +11,32 @@
  * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
  * details.
  *
- * Contributors:
- * 		Gregory Amerson - initial implementation and ongoing maintenance
  *******************************************************************************/
 
 package com.liferay.ide.hook.core.model.internal;
 
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
-import com.liferay.ide.hook.core.model.Hook;
-import com.liferay.ide.hook.core.util.HookUtil;
+import com.liferay.ide.core.util.CoreUtil;
 
 import java.io.File;
 import java.io.FileFilter;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.SortedSet;
+import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.sapphire.modeling.IModelElement;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.PossibleValuesService;
+import org.eclipse.sapphire.Value;
 import org.eclipse.sapphire.modeling.Path;
-import org.eclipse.sapphire.modeling.Status.Severity;
-import org.eclipse.sapphire.services.PossibleValuesService;
+import org.eclipse.sapphire.modeling.Status;
 
 /**
  * @author Gregory Amerson
+ * @author Simon Jiang
  */
 public class CustomJspPossibleValuesService extends PossibleValuesService
 {
@@ -55,8 +54,9 @@ public class CustomJspPossibleValuesService extends PossibleValuesService
     private Path portalDir;
     private File[] possibleValues;
 
+
     @Override
-    protected void fillPossibleValues( final SortedSet<String> values )
+    protected void compute( final Set<String> values )
     {
         if( possibleValues == null )
         {
@@ -66,25 +66,33 @@ public class CustomJspPossibleValuesService extends PossibleValuesService
 
             if( liferayProject != null )
             {
-                this.portalDir = new Path( liferayProject.getAppServerPortalDir().toPortableString() );
+                final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+                if( portal != null )
+                {
+                    this.portalDir = new Path( portal.getAppServerPortalDir().toPortableString() );
+
+                    if( this.portalDir != null )
+                    {
+                        final File portalDirFile = portalDir.toFile();
+                        final File htmlDirFile = new File( portalDirFile, "html" ); //$NON-NLS-1$
+
+                        final List<File> fileValues = new LinkedList<File>();
+
+                        if( htmlDirFile.exists() )
+                        {
+                            findJSPFiles( new File[] { htmlDirFile }, fileValues );
+                        }
+                        else
+                        {
+                            final File[] files = portalDirFile.listFiles( jspfilter );
+                            findJSPFiles( files, fileValues );
+                        }
+
+                        this.possibleValues = fileValues.toArray( new File[0] );
+                    }
+                }
             }
-
-            final File portalDirFile = portalDir.toFile();
-            final File htmlDirFile = new File( portalDirFile, "html" ); //$NON-NLS-1$
-
-            final List<File> fileValues = new LinkedList<File>();
-
-            if( htmlDirFile.exists() )
-            {
-                findJSPFiles( new File[] { htmlDirFile }, fileValues );
-            }
-            else
-            {
-                final File[] files = portalDirFile.listFiles( jspfilter );
-                findJSPFiles( files, fileValues );
-            }
-
-            this.possibleValues = fileValues.toArray( new File[0] );
         }
 
         if( possibleValues != null )
@@ -98,45 +106,31 @@ public class CustomJspPossibleValuesService extends PossibleValuesService
 
     private void findJSPFiles( final File[] files, final List<File> fileValues )
     {
-        for( File file : files )
+        if( ! CoreUtil.isNullOrEmpty( files ) )
         {
-            if( file.isDirectory() )
+            for( File file : files )
             {
-                findJSPFiles( file.listFiles( jspfilter ), fileValues );
-            }
-            else
-            {
-                fileValues.add( file );
+                if( file.isDirectory() )
+                {
+                    findJSPFiles( file.listFiles( jspfilter ), fileValues );
+                }
+                else
+                {
+                    fileValues.add( file );
+                }
             }
         }
     }
 
     @Override
-    public Severity getInvalidValueSeverity( String invalidValue )
+    public Status problem( Value<?> value )
     {
-        IFolder customJspFolder = HookUtil.getCustomJspFolder( hook(), project() );
-
-        if( customJspFolder != null )
-        {
-            IFile invalidFile = customJspFolder.getFile( invalidValue );
-
-            if( invalidFile.exists() )
-            {
-                return Severity.OK;
-            }
-        }
-
-        return Severity.ERROR;
-    }
-
-    private Hook hook()
-    {
-        return this.context().find( Hook.class );
+        return Status.createOkStatus();
     }
 
     protected IProject project()
     {
-        return context( IModelElement.class ).root().adapt( IFile.class ).getProject();
+        return context( Element.class ).root().adapt( IFile.class ).getProject();
     }
 
 }

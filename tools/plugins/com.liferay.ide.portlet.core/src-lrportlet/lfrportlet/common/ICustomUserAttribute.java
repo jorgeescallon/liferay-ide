@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *   
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -24,11 +24,11 @@ import org.eclipse.sapphire.java.JavaType;
 import org.eclipse.sapphire.java.JavaTypeConstraint;
 import org.eclipse.sapphire.java.JavaTypeKind;
 import org.eclipse.sapphire.java.JavaTypeName;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelElementType;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.ElementType;
 import org.eclipse.sapphire.modeling.ReferenceValue;
-import org.eclipse.sapphire.modeling.Value;
-import org.eclipse.sapphire.modeling.ValueProperty;
+import org.eclipse.sapphire.Value;
+import org.eclipse.sapphire.ValueProperty;
 import org.eclipse.sapphire.modeling.annotations.CountConstraint;
 import org.eclipse.sapphire.modeling.annotations.GenerateImpl;
 import org.eclipse.sapphire.modeling.annotations.Label;
@@ -43,9 +43,9 @@ import org.eclipse.sapphire.modeling.xml.annotations.XmlBinding;
  * @author kamesh
  */
 @GenerateImpl
-public interface ICustomUserAttribute extends IModelElement {
+public interface ICustomUserAttribute extends Element {
 
-	ModelElementType TYPE = new ModelElementType( ICustomUserAttribute.class );
+	ElementType TYPE = new ElementType( ICustomUserAttribute.class );
 
 	// *** Attribute Name ***
 

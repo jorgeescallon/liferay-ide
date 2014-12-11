@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Liferay Enterprise
  * Subscription License ("License"). You may not use this file except in
@@ -12,7 +12,7 @@
 package com.liferay.ide.server.ui.wizard;
 
 import com.liferay.ide.server.remote.IRemoteServerWorkingCopy;
-import com.liferay.ide.server.ui.LiferayServerUIPlugin;
+import com.liferay.ide.server.ui.LiferayServerUI;
 import com.liferay.ide.ui.util.UIUtil;
 
 import java.lang.reflect.InvocationTargetException;
@@ -29,14 +29,17 @@ import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.navigator.CommonViewer;
 import org.eclipse.wst.server.core.IServer;
 import org.eclipse.wst.server.core.IServerLifecycleListener;
+import org.eclipse.wst.server.core.IServerListener;
 import org.eclipse.wst.server.core.IServerWorkingCopy;
 import org.eclipse.wst.server.core.ServerCore;
+import org.eclipse.wst.server.core.ServerEvent;
 import org.eclipse.wst.server.core.TaskModel;
 import org.eclipse.wst.server.ui.wizard.IWizardHandle;
 import org.eclipse.wst.server.ui.wizard.WizardFragment;
 
 /**
  * @author Greg Amerson
+ * @author Simon Jiang
  */
 public class RemoteServerWizardFragment extends WizardFragment
 {
@@ -58,7 +61,7 @@ public class RemoteServerWizardFragment extends WizardFragment
 
         wizard.setTitle( Msgs.remoteLiferayServer );
         wizard.setDescription( Msgs.configureRemoteLiferayServerInstance );
-        wizard.setImageDescriptor( ImageDescriptor.createFromURL( LiferayServerUIPlugin.getDefault().getBundle().getEntry(
+        wizard.setImageDescriptor( ImageDescriptor.createFromURL( LiferayServerUI.getDefault().getBundle().getEntry(
             "/icons/wizban/server_wiz.png" ) ) ); //$NON-NLS-1$
 
         return composite;
@@ -135,6 +138,19 @@ public class RemoteServerWizardFragment extends WizardFragment
                     } );
 
                     ServerCore.removeServerLifecycleListener( this );
+
+                    server.addServerListener( new IServerListener()
+                    {
+                        public void serverChanged( ServerEvent event )
+                        {
+                            if( event.getServer().getServerState() == IServer.STATE_STARTED )
+                            {
+                                server.publish( IServer.PUBLISH_INCREMENTAL, null, null, null );
+
+                                server.removeServerListener( this );
+                            }
+                        }
+                    });
                 }
             }
 

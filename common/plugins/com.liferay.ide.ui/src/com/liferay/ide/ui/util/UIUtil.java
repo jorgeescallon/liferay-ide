@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -52,6 +52,7 @@ import org.osgi.framework.Bundle;
 /**
  * @author Greg Amerson
  * @author Cindy Li
+ * @author Simon Jiang
  */
 @SuppressWarnings( "restriction" )
 public class UIUtil
@@ -70,6 +71,27 @@ public class UIUtil
                 // ignore
             }
         }
+    }
+
+    public static void async( final Runnable runnable, final long delay )
+    {
+        final Runnable delayer = new Runnable()
+        {
+            public void run()
+            {
+                try
+                {
+                    Thread.sleep( delay );
+                }
+                catch( InterruptedException e )
+                {
+                }
+
+                async( runnable );
+            }
+        };
+
+        async( delayer );
     }
 
     private static boolean confirmPerspectiveSwitch( IWorkbenchWindow window, IPerspectiveDescriptor finalPersp )
@@ -126,6 +148,11 @@ public class UIUtil
         }
 
         return result == IDialogConstants.YES_ID;
+    }
+
+    public static IWorkbenchPage getActivePage()
+    {
+        return PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
     }
 
     public static Shell getActiveShell()
@@ -247,6 +274,30 @@ public class UIUtil
                 }
             }
         );
+    }
+
+    public static void refreshCommonView( final String viewId )
+    {
+        try
+        {
+            UIUtil.async( new Runnable()
+            {
+                public void run()
+                {
+                    IViewPart viewPart = showView( viewId );
+
+                    if( viewPart != null )
+                    {
+                        CommonViewer viewer = (CommonViewer) viewPart.getAdapter( CommonViewer.class );
+                        viewer.refresh( true );
+                    }
+                }
+            });
+        }
+        catch( Exception e )
+        {
+            LiferayUIPlugin.logError( "Unable to refresh view " + viewId, e );
+        }
     }
 
     private static void replaceCurrentPerspective( IPerspectiveDescriptor persp )

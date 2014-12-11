@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,16 +16,17 @@
 package com.liferay.ide.portlet.core.operation;
 
 import com.liferay.ide.core.ILiferayConstants;
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.FileUtil;
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.portlet.core.PortletCore;
+import com.liferay.ide.portlet.core.dd.LiferayDisplayDescriptorHelper;
 import com.liferay.ide.portlet.core.dd.PortletDescriptorHelper;
 import com.liferay.ide.project.core.IPluginWizardFragmentProperties;
 import com.liferay.ide.project.core.util.ProjectUtil;
-import com.liferay.ide.server.core.ILiferayRuntime;
 import com.liferay.ide.server.util.ServerUtil;
 
 import java.util.ArrayList;
@@ -55,6 +56,7 @@ import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.internal.core.search.BasicSearchEngine;
 import org.eclipse.jst.j2ee.common.CommonFactory;
 import org.eclipse.jst.j2ee.common.ParamValue;
+import org.eclipse.jst.j2ee.internal.common.operations.JavaModelUtil;
 import org.eclipse.jst.j2ee.internal.web.operations.NewWebClassDataModelProvider;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.wst.common.frameworks.datamodel.DataModelPropertyDescriptor;
@@ -66,13 +68,15 @@ import org.osgi.service.prefs.Preferences;
 /**
  * @author Greg Amerson
  * @author Cindy Li
+ * @author Tao Tao
+ * @author Terry Jia
  */
 @SuppressWarnings( { "restriction", "unchecked", "rawtypes" } )
 public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvider
     implements INewPortletClassDataModelProperties, IPluginWizardFragmentProperties
 {
 
-    private static final String PORTLET_SUFFIX_PATTERN = "(?<!^)portlet$"; //$NON-NLS-1$
+    private static final String PORTLET_SUFFIX_PATTERN = "([Pp][Oo][Rr][Tt][Ll][Ee][Tt])$"; //$NON-NLS-1$
 
     protected Properties categories;
     protected Properties entryCategories;
@@ -137,54 +141,17 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
         return defaultParams.toArray( new ParamValue[0] );
     }
 
-    protected IRuntime getRuntime() throws CoreException
-    {
-        IRuntime runtime = null;
-
-        if( this.fragment )
-        {
-            org.eclipse.wst.common.project.facet.core.runtime.IRuntime bRuntime =
-                (org.eclipse.wst.common.project.facet.core.runtime.IRuntime) getDataModel().getProperty( FACET_RUNTIME );
-            runtime = ServerUtil.getRuntime( bRuntime );
-        }
-        else
-        {
-            runtime = ServerUtil.getRuntime( (IProject) getProperty( PROJECT ) );
-        }
-
-        return runtime;
-    }
-
-    protected IProject getProject()
-    {
-        return (IProject) getProperty( PROJECT );
-    }
-
     protected Properties getCategories()
     {
         if( categories == null )
         {
-            final IProject project = (IProject) getProperty( PROJECT );
+            ILiferayProject liferayProject = LiferayCore.create( getProject() );
 
-            if( CoreUtil.isLiferayProject( project ) )
-            {
-                final ILiferayProject liferayProject = LiferayCore.create( project );
-
-                if( liferayProject != null )
-                {
-                    categories = liferayProject.getPortletCategories();
-                }
-            }
-            else
+            if( liferayProject == null )
             {
                 try
                 {
-                    ILiferayRuntime runtime = ServerUtil.getLiferayRuntime( getRuntime() );
-
-                    if( runtime != null )
-                    {
-                        categories = runtime.getPortletCategories();
-                    }
+                    liferayProject = LiferayCore.create( getRuntime() );
                 }
                 catch( CoreException e )
                 {
@@ -192,42 +159,31 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
                 }
             }
 
-            IProject[] workspaceProjects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
+            final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
 
-            for( IProject workspaceProject : workspaceProjects )
+            if( portal != null )
             {
-                if( ProjectUtil.isPortletProject( workspaceProject ) )
+                categories = portal.getPortletCategories();
+
+                final IProject[] workspaceProjects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
+
+                for( IProject workspaceProject : workspaceProjects )
                 {
-                    PortletDescriptorHelper portletDescriptorHelper = new PortletDescriptorHelper( workspaceProject );
-                    String[] portletCategories = portletDescriptorHelper.getAllPortletCategories();
-
-                    Enumeration<?> names = categories.propertyNames();
-
-                    if( portletCategories.length > 0 )
+                    if( ProjectUtil.isPortletProject( workspaceProject ) )
                     {
-                        boolean foundDuplicate = false;
+                        LiferayDisplayDescriptorHelper liferayDisplayDH =
+                            new LiferayDisplayDescriptorHelper( workspaceProject );
+                        String[] portletCategories = liferayDisplayDH.getAllPortletCategories();
 
-                        for( String portletCategory : portletCategories )
+                        if( portletCategories.length > 0 )
                         {
-                            names = categories.propertyNames();
-
-                            while( names.hasMoreElements() )
+                            for( String portletCategory : portletCategories )
                             {
-                                String name = names.nextElement().toString();
-
-                                if( portletCategory.equals( name ) )
+                                if( findExistingCategory( portletCategory ) == null )
                                 {
-                                    foundDuplicate = true;
-                                    break;
+                                    categories.put( portletCategory, portletCategory );
                                 }
                             }
-
-                            if( !foundDuplicate )
-                            {
-                                categories.put( portletCategory, portletCategory );
-                            }
-
-                            foundDuplicate = false;
                         }
                     }
                 }
@@ -266,12 +222,12 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
         }
         else if( PORTLET_NAME.equals( propertyName ) || LIFERAY_PORTLET_NAME.equals( propertyName ) )
         {
-            return getProperty( CLASS_NAME ).toString().toLowerCase().replaceAll( PORTLET_SUFFIX_PATTERN, StringPool.EMPTY );
+            return getPortletNameFromClassName( getStringProperty( CLASS_NAME ) );
         }
         else if( DISPLAY_NAME.equals( propertyName ) || TITLE.equals( propertyName ) ||
             SHORT_TITLE.equals( propertyName ) )
         {
-            return getDisplayNameFromClassName( getProperty( CLASS_NAME ).toString() );
+            return getDisplayNameFromPortletName( getStringProperty( PORTLET_NAME ) );
         }
         else if( KEYWORDS.equals( propertyName ) )
         {
@@ -378,50 +334,84 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
         {
             String initParameterName = "template"; //$NON-NLS-1$
 
-            ILiferayProject liferayProject = LiferayCore.create( getProject() );
-            String version = liferayProject.getPortalVersion();
-            Version portalVersion = Version.parseVersion( version );
+            final ILiferayProject liferayProject = LiferayCore.create( getProject() );
 
-            if( CoreUtil.compareVersions( portalVersion, ILiferayConstants.V610 ) < 0 )
+            final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+            if( portal != null )
             {
-                initParameterName = "jsp"; //$NON-NLS-1$
-            }
+                String version = portal.getVersion();
 
-            return initParameterName;
+                if( version != null )
+                {
+                    Version portalVersion = Version.parseVersion( version );
+
+                    if( CoreUtil.compareVersions( portalVersion, ILiferayConstants.V610 ) < 0 )
+                    {
+                        initParameterName = "jsp";
+                    }
+
+                    return initParameterName;
+                }
+            }
         }
 
         return super.getDefaultProperty( propertyName );
     }
 
-    protected Properties getEntryCategories()
+    private Object getDisplayNameFromPortletName( String oldName )
     {
-        if( entryCategories == null )
+        final String[] words = oldName.split( "\\s|-|_" ); //$NON-NLS-1$
+        StringBuilder newName = new StringBuilder();
+
+        for( int i = 0; i < words.length; i++ )
         {
-            final IProject project = (IProject) getProperty( PROJECT );
-
-            if( CoreUtil.isLiferayProject( project ) )
+            if( !words[i].isEmpty() )
             {
-                final ILiferayProject liferayProject = LiferayCore.create( project );
-
-                if( liferayProject != null )
+                if( words[i].length() > 1 )
                 {
-                    entryCategories = liferayProject.getPortletEntryCategories();
+                    String word = words[i].substring( 0, 1 ).toUpperCase() + words[i].substring( 1, words[i].length() );
+                    newName.append( word );
+                    newName.append( StringPool.SPACE );
                 }
-            }
-            else
-            {
-                try
+                else if( words[i].length() == 1 )
                 {
-                    ILiferayRuntime runtime = ServerUtil.getLiferayRuntime( getRuntime() );
-                    entryCategories = runtime.getPortletEntryCategories();
-                }
-                catch( CoreException e )
-                {
+                    newName.append( words[i].substring( 0, 1 ).toUpperCase() );
+                    newName.append( StringPool.SPACE );
                 }
             }
         }
 
-        return entryCategories;
+        return newName.toString().trim();
+    }
+
+    protected Properties getEntryCategories()
+    {
+        //removed if not null return directly, because it won't update when switch projects of different portal versions
+        ILiferayProject liferayProject = LiferayCore.create( getProject() );
+
+        if( liferayProject == null )
+        {
+            try
+            {
+                liferayProject = LiferayCore.create( getRuntime() );
+            }
+            catch( CoreException e )
+            {
+                PortletCore.logError( e );
+            }
+        }
+
+        final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+        if( portal != null )
+        {
+            return portal.getPortletEntryCategories();
+        }
+        else
+        {
+            return null;
+        }
     }
 
     protected Object getInitParams()
@@ -438,9 +428,10 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
 
             try
             {
-                ILiferayProject liferayProject = LiferayCore.create( getProject() );
-                String version = liferayProject.getPortalVersion();
-                Version portalVersion = Version.parseVersion( version );
+                final ILiferayProject liferayProject = LiferayCore.create( getProject() );
+                final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+                final String version = portal.getVersion();
+                final Version portalVersion = Version.parseVersion( version );
 
                 if( CoreUtil.compareVersions( portalVersion, ILiferayConstants.V610 ) >= 0 )
                 {
@@ -462,7 +453,7 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
         return initParams;
     }
 
-    protected String getDisplayNameFromClassName( String oldName )
+    protected String getPortletNameFromClassName( String oldName )
     {
         /*
          * Explaination for following regex
@@ -470,20 +461,26 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
          * then, two options - 1. after this place is: uppercase followed by lowercase. eg: NewJSF_Portlet
          * or 2. before this place is lowercase and after this place is uppercase. eg: New_JSFPortlet
          */
-        final String[] words = oldName.split( "(?<!^)((?=[A-Z][^A-Z])|(?<![A-Z])(?=[A-Z]))" ); //$NON-NLS-1$
+        final String SPLIT_PATTERN = "(?<!^)(?=[A-Z][^A-Z])|(?<=[^A-Z])(?=[A-Z])"; //$NON-NLS-1$
+        final String[] words = oldName.replaceAll( PORTLET_SUFFIX_PATTERN, StringPool.EMPTY ).split( SPLIT_PATTERN  );
         StringBuilder newName = new StringBuilder();
 
         for( int i = 0; i < words.length; i++ )
         {
             if( i > 0 )
             {
-                newName.append( StringPool.SPACE );
+                newName.append( StringPool.DASH );
             }
 
             newName.append( words[i] );
         }
 
-        return newName.toString();
+        return newName.toString().toLowerCase();
+    }
+
+    protected IProject getProject()
+    {
+        return (IProject) getProperty( PROJECT );
     }
 
     @Override
@@ -537,10 +534,43 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
         }
         else if( ENTRY_CATEGORY.equals( propertyName ) )
         {
-            if( getProperty( ENTRY_CATEGORY ).equals( "category.my" ) ) //$NON-NLS-1$
+            //following if block is for modifying portlet class name will resynch the model and lose the user choice
+            //check for null is for switching projects of different portal versions
+            final Object entryCategory = getProperty( ENTRY_CATEGORY );
+
+            if( entryCategory != null && getEntryCategories().get( entryCategory ) != null )
             {
-                return new DataModelPropertyDescriptor( "category.my", "My Account Section" ); //$NON-NLS-1$ //$NON-NLS-2$
+                return new DataModelPropertyDescriptor(
+                    entryCategory, getEntryCategories().get( entryCategory ).toString() );
             }
+
+            ILiferayProject liferayProject = LiferayCore.create( getProject() );
+
+            if( liferayProject == null )
+            {
+                try
+                {
+                    liferayProject = LiferayCore.create( getRuntime() );
+                }
+                catch( CoreException e )
+                {
+                    PortletCore.logError( e );
+                }
+            }
+
+            final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+            if( portal != null )
+            {
+                final Version portalVersion = Version.parseVersion( portal.getVersion() );
+
+                if( CoreUtil.compareVersions( portalVersion, ILiferayConstants.V620 ) < 0 )
+                {
+                    return new DataModelPropertyDescriptor( "category.my", "My Account Section" );
+                }
+            }
+
+            return new DataModelPropertyDescriptor( "category.my", "My Account Administration" );
         }
 
         return super.getPropertyDescriptor( propertyName );
@@ -618,6 +648,24 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
         return propertyNames;
     }
 
+    protected IRuntime getRuntime() throws CoreException
+    {
+        IRuntime runtime = null;
+
+        if( this.fragment )
+        {
+            org.eclipse.wst.common.project.facet.core.runtime.IRuntime bRuntime =
+                (org.eclipse.wst.common.project.facet.core.runtime.IRuntime) getDataModel().getProperty( FACET_RUNTIME );
+            runtime = ServerUtil.getRuntime( bRuntime );
+        }
+        else
+        {
+            runtime = ServerUtil.getRuntime( (IProject) getProperty( PROJECT ) );
+        }
+
+        return runtime;
+    }
+
     @Override
     public DataModelPropertyDescriptor[] getValidPropertyDescriptors( String propertyName )
     {
@@ -643,12 +691,14 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
                     List<String> list = new ArrayList<String>();
                     list.addAll( Arrays.asList( defaultVals ) );
 
-                    IJavaSearchScope scope =
-                        BasicSearchEngine.createHierarchyScope( javaProject.findType( "javax.portlet.Portlet" ) ); //$NON-NLS-1$
+                    final IType portletType = JavaModelUtil.findType( javaProject, "javax.portlet.Portlet" ); //$NON-NLS-1$
+
+                    final IJavaSearchScope scope =
+                        BasicSearchEngine.createStrictHierarchyScope( javaProject, portletType, true, true, null );
 
                     for( int i = 0; i < customVals.length; i++ )
                     {
-                        IType type = javaProject.findType( customVals[i] );
+                        IType type = JavaModelUtil.findType( javaProject, customVals[i] );
 
                         if( type != null && scope.encloses( type ) )
                         {
@@ -714,6 +764,29 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
         return retval;
     }
 
+    private String findExistingCategory( final String portletCategory )
+    {
+        // Check the value and key for each category, if the category's value or key is the same with
+        // the original one, return the String value of key.
+        Enumeration<?> keys = categories.keys();
+        String trimmedCategory = portletCategory.trim();
+        String retval = null;
+
+        while( keys.hasMoreElements() )
+        {
+            Object key = keys.nextElement();
+            Object value = categories.get( key );
+
+            if( trimmedCategory.equals( key ) || trimmedCategory.equals( value ) )
+            {
+                retval = key.toString();
+                break;
+            }
+        }
+
+        return retval;
+    }
+
     @Override
     public boolean isPropertyEnabled( String propertyName )
     {
@@ -761,14 +834,22 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
         {
             IJavaProject javaProject = JavaCore.create( getProject() );
 
-            IJavaSearchScope scope =
-                BasicSearchEngine.createHierarchyScope( javaProject.findType( "javax.portlet.Portlet" ) );
-
-            IType classType = javaProject.findType( qualifiedClassName );
-
-            if( classType != null && scope.encloses( classType ) )
+            if( javaProject != null )
             {
-                return true;
+                final IType portletType = JavaModelUtil.findType( javaProject, "javax.portlet.Portlet" ); //$NON-NLS-1$
+
+                if( portletType != null )
+                {
+                    final IJavaSearchScope scope =
+                        BasicSearchEngine.createStrictHierarchyScope( javaProject, portletType, true, true, null );
+
+                    final IType classType = JavaModelUtil.findType( javaProject, qualifiedClassName );
+
+                    if( classType != null && scope.encloses( classType ) )
+                    {
+                        return true;
+                    }
+                }
             }
         }
         catch( JavaModelException e )
@@ -843,6 +924,17 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
             String liferayPortletName = getStringProperty( propertyName );
 
             getDataModel().setStringProperty( PORTLET_NAME, liferayPortletName );
+        }
+        else if( CATEGORY.equals( propertyName ) )
+        {
+            String portletCategory = findExistingCategory( propertyValue.toString() );
+
+            if( portletCategory != null )
+            {
+                getDataModel().setProperty( CATEGORY, portletCategory );
+            }
+
+            return true;
         }
 
         return super.propertySet( propertyName, propertyValue );
@@ -936,7 +1028,7 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
 
             if( ( !CoreUtil.isNullOrEmpty( folderValue ) ) && targetProject != null )
             {
-                IFolder defaultDocroot = CoreUtil.getDefaultDocrootFolder( targetProject );
+                IFolder defaultDocroot = LiferayCore.create( targetProject ).getDefaultDocrootFolder();
                 String errorMsg = FileUtil.validateNewFolder( defaultDocroot, folderValue );
 
                 if( errorMsg != null )
@@ -975,8 +1067,22 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
                 return PortletCore.createErrorStatus( Msgs.portletSuperclassValid );
             }
         }
+        else if( CATEGORY.equals( propertyName ) )
+        {
+            String category = getStringProperty( propertyName );
+
+            if( category.matches( "\\s*" ) )
+            {
+                return PortletCore.createErrorStatus( Msgs.categoryNameEmpty );
+            }
+        }
         else if( ENTRY_WEIGHT.equals( propertyName ) )
         {
+            if( !getBooleanProperty( ADD_TO_CONTROL_PANEL ) )
+            {
+                return Status.OK_STATUS;
+            }
+
             String entryweight = getStringProperty( propertyName );
 
             if( !CoreUtil.isNumeric( entryweight ) )
@@ -988,6 +1094,11 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
         }
         else if( ENTRY_CLASS_NAME.equals( propertyName ) )
         {
+            if( !getBooleanProperty( ADD_TO_CONTROL_PANEL ) || !getBooleanProperty( CREATE_ENTRY_CLASS ) )
+            {
+                return Status.OK_STATUS;
+            }
+
             String entryclasswrapper = getStringProperty( propertyName );
 
             if( validateJavaClassName( entryclasswrapper ).getSeverity() != IStatus.ERROR )
@@ -1015,6 +1126,7 @@ public class NewPortletClassDataModelProvider extends NewWebClassDataModelProvid
 
     private static class Msgs extends NLS
     {
+        public static String categoryNameEmpty;
         public static String jspFolderNotEmpty;
         public static String jspFolderNotMatchPortletName;
         public static String portletNameEmpty;

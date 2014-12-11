@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,13 +15,12 @@
 
 package com.liferay.ide.portlet.ui.wizard;
 
-import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.portlet.core.operation.INewPortletClassDataModelProperties;
 import com.liferay.ide.portlet.ui.PortletUIPlugin;
 import com.liferay.ide.project.core.util.ProjectUtil;
+import com.liferay.ide.project.ui.wizard.LiferayDataModelWizardPage;
 import com.liferay.ide.ui.util.SWTUtil;
-import com.liferay.ide.ui.wizard.LiferayDataModelWizardPage;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -44,13 +43,13 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.dialogs.ISelectionStatusValidator;
 import org.eclipse.wst.common.componentcore.internal.operation.IArtifactEditOperationDataModelProperties;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
 import org.eclipse.wst.common.frameworks.datamodel.DataModelEvent;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModelListener;
 
 /**
  * @author Greg Amerson
+ * @author Terry Jia
  */
 @SuppressWarnings( "restriction" )
 public class NewLiferayPortletWizardPage extends LiferayDataModelWizardPage
@@ -102,36 +101,36 @@ public class NewLiferayPortletWizardPage extends LiferayDataModelWizardPage
         this.synchHelper.synchCheckbox(this.addToControlPanelButton, ADD_TO_CONTROL_PANEL, null);
 
         final Label entryCategoryLabel = SWTUtil.createLabel(group, Msgs.entryCategoryLabel, 1);
-        
+
         this.entryCategory = new Combo(group, SWT.DROP_DOWN);
         this.entryCategory.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
         this.synchHelper.synchCombo(entryCategory, ENTRY_CATEGORY, null);
-        
+
         final Label entryWeightLabel = SWTUtil.createLabel(group, Msgs.entryWeightLabel, 1);
-        
+
         this.entryWeight = SWTUtil.createText(group, 1);
         this.synchHelper.synchText(entryWeight, ENTRY_WEIGHT, null);
-        
+
         SWTUtil.createLabel(group, StringPool.EMPTY, 1);
-        
+
         this.createEntryClassButton = SWTUtil.createCheckButton(group, Msgs.createEntryClass, null, false, 1);
         this.createEntryClassButton.setToolTipText
-        ( 
+        (
             Msgs.controlPanelEntryClassValue
         );
         this.synchHelper.synchCheckbox(createEntryClassButton, CREATE_ENTRY_CLASS, null);
-        
+
         final Label entryClassLabel = SWTUtil.createLabel(group, Msgs.entryClassLabel, 1);
-        
+
         this.entryClassWrapper = SWTUtil.createText(group, 1);
         this.synchHelper.synchText(entryClassWrapper, ENTRY_CLASS_NAME, null);
-        
+
         addToControlPanelButton.addSelectionListener
         (
-            new SelectionAdapter() 
+            new SelectionAdapter()
             {
                 @Override
-                public void widgetSelected(SelectionEvent e) 
+                public void widgetSelected(SelectionEvent e)
                 {
                 entryCategoryLabel.setEnabled( addToControlPanelButton.getSelection() );
                 entryCategory.setEnabled( addToControlPanelButton.getSelection() );
@@ -148,9 +147,9 @@ public class NewLiferayPortletWizardPage extends LiferayDataModelWizardPage
                 }
             }
         );
-        
+
         createEntryClassButton.addSelectionListener
-        ( 
+        (
             new SelectionAdapter()
             {
                 @Override
@@ -192,7 +191,7 @@ public class NewLiferayPortletWizardPage extends LiferayDataModelWizardPage
         {
             Button iconFileBrowse = SWTUtil.createPushButton( group, Msgs.browse, null );
             iconFileBrowse.addSelectionListener
-            ( 
+            (
                 new SelectionAdapter()
                 {
                     @Override
@@ -201,7 +200,7 @@ public class NewLiferayPortletWizardPage extends LiferayDataModelWizardPage
                         handleFileBrowseButton(
                             NewLiferayPortletWizardPage.this.iconFile, Msgs.iconSelection, Msgs.chooseIconFileLabel );
                     }
-    
+
                 }
             );
         }
@@ -224,7 +223,7 @@ public class NewLiferayPortletWizardPage extends LiferayDataModelWizardPage
         {
             Button cssFileBrowse = SWTUtil.createPushButton( group, Msgs.browse, null );
             cssFileBrowse.addSelectionListener
-            ( 
+            (
                 new SelectionAdapter()
                 {
                     @Override
@@ -233,7 +232,7 @@ public class NewLiferayPortletWizardPage extends LiferayDataModelWizardPage
                         handleFileBrowseButton(
                             NewLiferayPortletWizardPage.this.cssFile, Msgs.cssSelection, Msgs.chooseCssFileLabel );
                     }
-    
+
                 }
             );
         }
@@ -261,7 +260,7 @@ public class NewLiferayPortletWizardPage extends LiferayDataModelWizardPage
                             NewLiferayPortletWizardPage.this.javascriptFile, Msgs.javascriptSelection,
                             Msgs.chooseJavascriptFileLabel );
                     }
-    
+
                 }
             );
         }
@@ -274,7 +273,7 @@ public class NewLiferayPortletWizardPage extends LiferayDataModelWizardPage
         SWTUtil.createLabel( group, StringPool.EMPTY, 1 );
 
         this.synchHelper.getDataModel().addListener
-        ( 
+        (
             new IDataModelListener()
             {
                 public void propertyChanged( DataModelEvent event )
@@ -371,24 +370,21 @@ public class NewLiferayPortletWizardPage extends LiferayDataModelWizardPage
         };
     }
 
-    protected IVirtualFolder getDocroot()
-    {
-        return CoreUtil.getDocroot( getDataModel().getStringProperty( PROJECT_NAME ) );
-    }
-
     @Override
     protected String[] getValidationPropertyNames()
     {
-        return new String[] 
-        { 
-            LIFERAY_PORTLET_NAME, 
-            ICON_FILE, 
-            ALLOW_MULTIPLE, 
-            CSS_FILE, 
+        return new String[]
+        {
+            LIFERAY_PORTLET_NAME,
+            ICON_FILE,
+            ALLOW_MULTIPLE,
+            CSS_FILE,
             JAVASCRIPT_FILE,
-            CSS_CLASS_WRAPPER, 
+            CSS_CLASS_WRAPPER,
+            ADD_TO_CONTROL_PANEL,
             CATEGORY,
-            ENTRY_WEIGHT, 
+            ENTRY_WEIGHT,
+            CREATE_ENTRY_CLASS,
             ENTRY_CLASS_NAME
         };
     }

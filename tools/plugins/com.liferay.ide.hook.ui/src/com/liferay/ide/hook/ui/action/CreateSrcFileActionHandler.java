@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -21,10 +21,10 @@ package com.liferay.ide.hook.ui.action;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.hook.ui.HookUI;
-import com.liferay.ide.project.core.util.ProjectUtil;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.List;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -32,87 +32,55 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IPath;
-import org.eclipse.sapphire.DisposeEvent;
-import org.eclipse.sapphire.Event;
-import org.eclipse.sapphire.FilteredListener;
-import org.eclipse.sapphire.Listener;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelProperty;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.Property;
+import org.eclipse.sapphire.Value;
+import org.eclipse.sapphire.ValueProperty;
 import org.eclipse.sapphire.modeling.Path;
-import org.eclipse.sapphire.modeling.PropertyEvent;
-import org.eclipse.sapphire.modeling.Value;
-import org.eclipse.sapphire.modeling.ValueProperty;
 import org.eclipse.sapphire.modeling.annotations.FileSystemResourceType;
 import org.eclipse.sapphire.modeling.annotations.ValidFileSystemResourceType;
-import org.eclipse.sapphire.ui.PropertyEditorPart;
-import org.eclipse.sapphire.ui.SapphireAction;
-import org.eclipse.sapphire.ui.SapphirePropertyEditorActionHandler;
-import org.eclipse.sapphire.ui.SapphirePropertyEditorCondition;
-import org.eclipse.sapphire.ui.SapphireRenderingContext;
-import org.eclipse.sapphire.ui.def.ActionHandlerDef;
+import org.eclipse.sapphire.ui.Presentation;
+import org.eclipse.sapphire.ui.forms.PropertyEditorActionHandler;
+import org.eclipse.sapphire.ui.forms.PropertyEditorCondition;
+import org.eclipse.sapphire.ui.forms.PropertyEditorPart;
 
 /**
- * @author <a href="mailto:kamesh.sampath@hotmail.com">Kamesh Sampath</a>
+ * @author Kamesh Sampath
  * @author Gregory Amerson
  */
-public class CreateSrcFileActionHandler extends SapphirePropertyEditorActionHandler
+public class CreateSrcFileActionHandler extends PropertyEditorActionHandler
 {
-    public static class Condition extends SapphirePropertyEditorCondition
-    {
-        @Override
-        protected final boolean evaluate( final PropertyEditorPart part )
-        {
-            final ModelProperty property = part.getProperty();
-            final IModelElement element = part.getModelElement();
-
-            if( property instanceof ValueProperty && element != null && property.isOfType( Path.class ) )
-            {
-                final ValidFileSystemResourceType typeAnnotation =
-                    property.getAnnotation( ValidFileSystemResourceType.class );
-
-                if( typeAnnotation != null && typeAnnotation.value() == FileSystemResourceType.FILE )
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-    }
-    
-    private Listener listener;
-    private IModelElement modelElement;
-
-    private ModelProperty modelProperty;
+    private String refreshOnRunProperty;
 
     @Override
     protected final boolean computeEnablementState()
     {
         boolean isEnabled = super.computeEnablementState();
-        
-        if( modelElement != null && isEnabled )
+
+        if( this.getModelElement() != null && isEnabled )
         {
             // check for existence of the file
-            IFile srcFile = getSrcFile();
-                
+            final IFile srcFile = getSrcFile();
+
             if( srcFile != null && srcFile.exists() )
             {
                 isEnabled = false;
             }
         }
-        
+
         return isEnabled;
     }
 
     private IPath getDefaultSrcFolderPath()
     {
-        IProject project = this.modelElement.adapt( IProject.class );
+        final IProject project = this.getModelElement().adapt( IProject.class );
 
-        IFolder[] folders = ProjectUtil.getSourceFolders( project );
+        final List<IFolder> folders = CoreUtil.getSourceFolders( JavaCore.create( project ) );
 
         if( !CoreUtil.isNullOrEmpty( folders ) )
         {
-            return folders[0].getFullPath();
+            return folders.get( 0 ).getFullPath();
         }
 
         return null;
@@ -122,20 +90,17 @@ public class CreateSrcFileActionHandler extends SapphirePropertyEditorActionHand
     {
         IFile retval = null;
 
-        if( modelProperty instanceof ValueProperty )
+        final ValueProperty valueProperty = ValueProperty.class.cast( this.property().definition() );
+        final Value<Path> value = this.getModelElement().property( valueProperty );
+
+        if( value != null && !CoreUtil.isNullOrEmpty( value.text() ) )
         {
-            ValueProperty valueProperty = (ValueProperty) modelProperty;
-            final Value<Path> value = modelElement.read( valueProperty );
-            
-            if( value != null && !CoreUtil.isNullOrEmpty( value.getText() ) )
+            final IPath defaultSrcFolderPath = getDefaultSrcFolderPath();
+
+            if( defaultSrcFolderPath != null )
             {
-                final IPath defaultSrcFolderPath = getDefaultSrcFolderPath();
-                
-                if( defaultSrcFolderPath != null )
-                {
-                    final IPath filePath = defaultSrcFolderPath.append( value.getText() );
-                    retval = ResourcesPlugin.getWorkspace().getRoot().getFile( filePath );
-                }
+                final IPath filePath = defaultSrcFolderPath.append( value.text() );
+                retval = ResourcesPlugin.getWorkspace().getRoot().getFile( filePath );
             }
         }
 
@@ -143,75 +108,65 @@ public class CreateSrcFileActionHandler extends SapphirePropertyEditorActionHand
     }
 
     @Override
-    public void init( final SapphireAction action, ActionHandlerDef def )
+    public Object run( Presentation context )
     {
-        super.init( action, def );
-        modelElement = getModelElement();
-        modelProperty = getProperty();
-        
-        this.listener = new FilteredListener<PropertyEvent>()
+        final IFile file = getSrcFile();
+
+        try
         {
-            @Override
-            public void handleTypedEvent( final PropertyEvent event )
+            if( ! file.exists() )
             {
+                InputStream defaultContentStream = new ByteArrayInputStream( StringPool.EMPTY.getBytes() );
+
+                file.create( defaultContentStream, true, null );
+
+                try
+                {
+                    file.refreshLocal( IResource.DEPTH_INFINITE, null );
+                }
+                catch( Exception e )
+                {
+                    HookUI.logError( e );
+                }
+
+                final ValueProperty valueProperty = ValueProperty.class.cast( this.property().definition() );
+
+                // do this so that the downstream properties can update their enablement/validation/etc.
+                Object content = this.getModelElement().property( valueProperty ).content();
+                this.getModelElement().property( valueProperty ).clear();
+                this.getModelElement().property( valueProperty ).write( content );
+
                 refreshEnablementState();
             }
+        }
+        catch( Exception e )
+        {
+            HookUI.logError( "Unable to create src file: " + file.getName(), e );
+        }
 
-        };
-
-        modelElement.attach( this.listener, modelProperty.getName() );
-
-        attach
-        ( 
-            new Listener()
-            {
-                @Override
-                public void handle( Event event )
-                {
-                    if( event instanceof DisposeEvent )
-                    {
-                        getModelElement().detach( listener, modelProperty.getName() );
-                    }
-                }
-            }
-        );
+        return null;
     }
 
-    @Override
-    public Object run( SapphireRenderingContext context )
+    public static class Condition extends PropertyEditorCondition
     {
-        if( modelProperty instanceof ValueProperty )
+        @Override
+        protected final boolean evaluate( final PropertyEditorPart part )
         {
-            final IFile file = getSrcFile();
+            final Property property = part.property();
+            final Element element = part.getModelElement();
 
-            try
+            if( property.definition() instanceof ValueProperty && element != null && property.definition().isOfType( Path.class ) )
             {
-                if( !file.exists() )
+                final ValidFileSystemResourceType typeAnnotation =
+                    property.definition().getAnnotation( ValidFileSystemResourceType.class );
+
+                if( typeAnnotation != null && typeAnnotation.value() == FileSystemResourceType.FILE )
                 {
-                    InputStream defaultContentStream = new ByteArrayInputStream( StringPool.EMPTY.getBytes() );
-
-                    file.create( defaultContentStream, true, null );
-
-                    try
-                    {
-                        file.refreshLocal( IResource.DEPTH_INFINITE, null );
-                    }
-                    catch( Exception e )
-                    {
-                        HookUI.logError( e );
-                    }
-
-                    modelElement.refresh( true, true );
-                    // write the property again with the same value to force
-                    // modelElement.write( valueProperty, value.getContent() );
-                    refreshEnablementState();
+                    return true;
                 }
             }
-            catch( Exception e )
-            {
-            }
+
+            return false;
         }
-        
-        return null;
     }
 }

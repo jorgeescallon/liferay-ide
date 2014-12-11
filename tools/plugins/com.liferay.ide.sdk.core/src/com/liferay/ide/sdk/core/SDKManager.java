@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -22,6 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
@@ -35,21 +36,11 @@ import org.osgi.framework.Version;
 @SuppressWarnings( "restriction" )
 public final class SDKManager
 {
+    private static final byte EVENT_ADDED = 0;
+    private static final byte EVENT_CHANGED = 1;
+    private static final byte EVENT_REMOVED = 2;
 
     private static SDKManager instance;
-
-    public SDK getDefaultSDK()
-    {
-        for( SDK sdk : getSDKs() )
-        {
-            if( sdk.isDefault() )
-            {
-                return sdk;
-            }
-        }
-
-        return null;
-    }
 
     public static SDKManager getInstance()
     {
@@ -66,36 +57,25 @@ public final class SDKManager
         return ISDKConstants.LEAST_SUPPORTED_SDK_VERSION;
     }
 
-    public SDK getSDK( IPath sdkLocation )
-    {
-        for( SDK sdk : getSDKs() )
-        {
-            if( sdk.getLocation().equals( sdkLocation ) )
-            {
-                return sdk;
-            }
-        }
-
-        return null;
-    }
-
-    public void saveSDKs( SDK[] sdks )
-    {
-        setSDKs( sdks );
-    }
-
     private boolean initialized = false;
 
     // current list of available sdks
-    private ArrayList<SDK> sdkList;
+    private List<SDK> sdkList;
+
+    protected List<ISDKListener> sdkListeners = new ArrayList<ISDKListener>(3);
 
     private SDKManager()
     {
         instance = this;
     }
 
-    public void addSDK( SDK sdk )
+    public synchronized void addSDK( SDK sdk )
     {
+        if( sdk == null )
+        {
+            throw new IllegalArgumentException( "sdk cannot be null" );
+        }
+
         if( !initialized )
         {
             initialize();
@@ -109,6 +89,105 @@ public final class SDKManager
         }
 
         saveSDKs();
+
+        fireSDKEvent( new SDK[] { sdk }, EVENT_ADDED );
+    }
+
+    public void addSDKListener( ISDKListener listener )
+    {
+        synchronized ( sdkListeners )
+        {
+            sdkListeners.add( listener );
+        }
+    }
+
+    public synchronized void clearSDKs()
+    {
+        this.sdkList.clear();
+
+        saveSDKs();
+
+        fireSDKEvent( new SDK[] {}, EVENT_REMOVED );
+    }
+
+    public boolean containsSDK( SDK theSDK )
+    {
+        if( theSDK != null && getSDKs().length > 0 )
+        {
+            for( SDK sdk : getSDKs() )
+            {
+                if( theSDK.getName().equals( sdk.getName() ) && theSDK.getLocation().equals( sdk.getLocation() ) )
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void fireSDKEvent( SDK[] sdks, byte event )
+    {
+        if( !sdkListeners.isEmpty() )
+        {
+            List<ISDKListener> clone = new ArrayList<ISDKListener>();
+            clone.addAll( sdkListeners );
+
+            for( ISDKListener listener : clone )
+            {
+                try
+                {
+                    if( event == EVENT_ADDED )
+                    {
+                        listener.sdksAdded( sdks );
+                    }
+                    else if( event == EVENT_CHANGED )
+                    {
+                        listener.sdksChanged( sdks );
+                    }
+                    else if( event == EVENT_REMOVED )
+                    {
+                        listener.sdksRemoved( sdks );
+                    }
+                }
+                catch( Exception e )
+                {
+                    SDKCorePlugin.logError( "error in sdk listener.", e ); //$NON-NLS-1$
+                }
+            }
+        }
+    }
+
+    public SDK getDefaultSDK()
+    {
+        for( SDK sdk : getSDKs() )
+        {
+            if( sdk.isDefault() )
+            {
+                return sdk;
+            }
+        }
+
+        return null;
+    }
+
+    @SuppressWarnings( "deprecation" )
+    private IEclipsePreferences getPrefs()
+    {
+        return new InstanceScope().getNode( SDKCorePlugin.PREFERENCE_ID );
+    }
+
+    public SDK getSDK( IPath sdkLocation )
+    {
+        for( SDK sdk : getSDKs() )
+        {
+            if( sdk.getLocation().equals( sdkLocation ) )
+            {
+                return sdk;
+            }
+        }
+
+        return null;
     }
 
     public SDK getSDK( String sdkName )
@@ -129,7 +208,7 @@ public final class SDKManager
         return null;
     }
 
-    public SDK[] getSDKs()
+    public synchronized SDK[] getSDKs()
     {
         if( !initialized )
         {
@@ -137,24 +216,6 @@ public final class SDKManager
         }
 
         return sdkList.toArray( new SDK[0] );
-    }
-
-    public void setSDKs( SDK[] sdks )
-    {
-        this.sdkList.clear();
-
-        for( SDK sdk : sdks )
-        {
-            sdkList.add( sdk );
-        }
-
-        saveSDKs();
-    }
-
-    @SuppressWarnings( "deprecation" )
-    private IEclipsePreferences getPrefs()
-    {
-        return new InstanceScope().getNode( SDKCorePlugin.PREFERENCE_ID );
     }
 
     private void initialize()
@@ -178,7 +239,7 @@ public final class SDKManager
             {
                 XMLMemento root =
                     XMLMemento.createReadRoot( new InputStreamReader( new ByteArrayInputStream(
-                        sdksXmlString.getBytes( "UTF-8" ) ) ) ); //$NON-NLS-1$
+                        sdksXmlString.getBytes( "UTF-8" ) ), "UTF-8" ) ); //$NON-NLS-1$
 
                 String defaultSDKName = root.getString( "default" ); //$NON-NLS-1$
 
@@ -206,6 +267,14 @@ public final class SDKManager
             {
                 SDKCorePlugin.logError( e );
             }
+        }
+    }
+
+    public void removeSDKListener( ISDKListener listener )
+    {
+        synchronized ( sdkListeners )
+        {
+            sdkListeners.remove( listener );
         }
     }
 
@@ -240,20 +309,28 @@ public final class SDKManager
         }
     }
 
-    public boolean containsSDK( SDK theSDK )
+    public synchronized void setSDKs( SDK[] sdks )
     {
-        if( theSDK != null && getSDKs().length > 0 )
+        if( CoreUtil.isNullOrEmpty( sdks ) )
         {
-            for( SDK sdk : getSDKs() )
-            {
-                if( theSDK.equals( sdk ) )
-                {
-                    return true;
-                }
-            }
+            throw new IllegalArgumentException( "sdk array cannot be null or empty" );
         }
 
-        return false;
+        if( CoreUtil.containsNullElement( sdks ) )
+        {
+            throw new IllegalArgumentException( "sdk array contains null element" );
+        }
+
+        this.sdkList.clear();
+
+        for( SDK sdk : sdks )
+        {
+            sdkList.add( sdk );
+        }
+
+        saveSDKs();
+
+        fireSDKEvent( sdks, EVENT_CHANGED );
     }
 
 }

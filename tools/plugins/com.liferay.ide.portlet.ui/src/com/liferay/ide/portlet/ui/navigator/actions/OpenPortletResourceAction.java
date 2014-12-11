@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -36,12 +36,12 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.osgi.util.NLS;
+import org.eclipse.sapphire.Element;
 import org.eclipse.sapphire.java.JavaTypeName;
-import org.eclipse.sapphire.modeling.IModelElement;
 import org.eclipse.sapphire.ui.SapphireEditor;
-import org.eclipse.sapphire.ui.form.editors.masterdetails.MasterDetailsContentNode;
-import org.eclipse.sapphire.ui.form.editors.masterdetails.MasterDetailsContentOutline;
-import org.eclipse.sapphire.ui.form.editors.masterdetails.MasterDetailsEditorPage;
+import org.eclipse.sapphire.ui.forms.MasterDetailsContentNodePart;
+import org.eclipse.sapphire.ui.forms.MasterDetailsContentOutline;
+import org.eclipse.sapphire.ui.forms.swt.MasterDetailsEditorPage;
 import org.eclipse.sapphire.ui.swt.xml.editor.SapphireEditorForXml;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IEditorDescriptor;
@@ -158,12 +158,12 @@ public class OpenPortletResourceAction extends BaseSelectionListenerAction
      */
     protected void openPortletJavaClass( final IFile file )
     {
-        IModelElement modelElement = ( (PortletNode) this.selectedNode ).getModel();
+        Element modelElement = ( (PortletNode) this.selectedNode ).getModel();
 
         if( modelElement instanceof Portlet )
         {
             final Portlet portlet = (Portlet) modelElement;
-            final JavaTypeName portletClassFile = portlet.getPortletClass().getContent();
+            final JavaTypeName portletClassFile = portlet.getPortletClass().content();
 
             Display.getDefault().asyncExec( new Runnable()
             {
@@ -254,7 +254,7 @@ public class OpenPortletResourceAction extends BaseSelectionListenerAction
             SapphireEditorForXml editor = (SapphireEditorForXml) editorPart;
 
             PortletNode portletNavigatorNode = (PortletNode) this.selectedNode;
-            IModelElement selectedModelElement = portletNavigatorNode.getModel();
+            Element selectedModelElement = portletNavigatorNode.getModel();
 
             if( selectedModelElement != null )
             {
@@ -264,12 +264,12 @@ public class OpenPortletResourceAction extends BaseSelectionListenerAction
                 if( mdepDetailsEditorPage != null )
                 {
                     MasterDetailsContentOutline contentOutline = mdepDetailsEditorPage.outline();
-                    MasterDetailsContentNode rootNode = contentOutline.getRoot();
+                    MasterDetailsContentNodePart rootNode = contentOutline.getRoot();
 
                     if( rootNode != null )
                     {
-                        MasterDetailsContentNode portletAppNode = rootNode.nodes().visible().get( 0 );
-                        MasterDetailsContentNode portletsNode = portletAppNode.findNode( PORTLETS_NODE_LABEL );
+                        MasterDetailsContentNodePart portletAppNode = rootNode.nodes().visible().get( 0 );
+                        MasterDetailsContentNodePart portletsNode = portletAppNode.findNode( PORTLETS_NODE_LABEL );
 
                         // TODO: Performance Check ???, cant we not have the shared model ?
 
@@ -279,15 +279,15 @@ public class OpenPortletResourceAction extends BaseSelectionListenerAction
                             {
                                 Portlet selectedPortlet = (Portlet) selectedModelElement;
 
-                                for( MasterDetailsContentNode childNode : portletsNode.nodes().visible() )
+                                for( MasterDetailsContentNodePart childNode : portletsNode.nodes().visible() )
                                 {
-                                    String selectedPortletName = selectedPortlet.getPortletName().getContent();
+                                    String selectedPortletName = selectedPortlet.getPortletName().content();
 
                                     if( childNode.getModelElement() instanceof Portlet )
                                     {
                                         Portlet mpContentNodePortlet = (Portlet) childNode.getModelElement();
                                         String mpContentNodePortletName =
-                                            mpContentNodePortlet.getPortletName().getContent();
+                                            mpContentNodePortlet.getPortletName().content();
 
                                         if( selectedPortletName.equals( mpContentNodePortletName ) )
                                         {

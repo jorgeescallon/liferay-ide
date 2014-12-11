@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -27,15 +27,22 @@ import org.eclipse.core.runtime.IProgressMonitor;
 
 /**
  * @author Gregory Amerson
+ * @author Cindy Li
  */
 public interface IServerManagerConnection extends IRemoteConnection
 {
 
     int getDebugPort() throws APIException;
-    
-    String getManagerURI();
+
+    String getFMDebugPassword() throws APIException;
+
+    int getFMDebugPort() throws APIException;
 
     List<String> getLiferayPlugins();
+
+    String getManagerURI();
+
+    String getRemoteServerConfig( String configAPI ) throws APIException;
 
     String getServerState() throws APIException;
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,15 +16,9 @@
 package com.liferay.ide.project.ui.action;
 
 import com.liferay.ide.core.util.CoreUtil;
-import com.liferay.ide.project.core.ISDKTemplate;
-import com.liferay.ide.project.core.LiferayProjectCore;
-import com.liferay.ide.project.ui.ProjectUIPlugin;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
 
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExtensionPoint;
@@ -34,9 +28,7 @@ import org.eclipse.jface.action.ActionContributionItem;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.action.IMenuCreator;
 import org.eclipse.jface.action.Separator;
-import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.ISelection;
-import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.Shell;
@@ -46,21 +38,12 @@ import org.eclipse.ui.PlatformUI;
 
 /**
  * @author Greg Amerson
+ * @author Kuo Zhang
+ * @author Simon Jiang
  */
 public class NewPluginProjectDropDownAction extends Action implements IMenuCreator, IWorkbenchWindowPulldownDelegate2
 {
-
-    private static final class SDKTemplateComparator implements Comparator<ISDKTemplate>
-    {
-        public int compare( ISDKTemplate o1, ISDKTemplate o2 )
-        {
-            int index1 = o1.getMenuIndex();
-            int index2 = o2.getMenuIndex();
-
-            return index1 < index2 ? -1 : index1 > index2 ? 1 : 0;
-        }
-    }
-
+    protected final static String DEFAULT_WIZARD_ID= "com.liferay.ide.project.ui.newPluginProjectWizard";//$NON-NLS-1$
     protected final static String PL_NEW = "newWizards"; //$NON-NLS-1$
     protected final static String TAG_CLASS = "class"; //$NON-NLS-1$
     protected final static String TAG_NAME = "name";//$NON-NLS-1$
@@ -82,7 +65,7 @@ public class NewPluginProjectDropDownAction extends Action implements IMenuCreat
     {
     }
 
-    public static NewWizardAction[] getNewProjectActions()
+    public NewWizardAction[] getActionFromDescriptors( String typeAttribute )
     {
         ArrayList<NewWizardAction> containers = new ArrayList<NewWizardAction>();
 
@@ -95,30 +78,9 @@ public class NewPluginProjectDropDownAction extends Action implements IMenuCreat
 
             for( IConfigurationElement element : elements )
             {
-                if( element.getName().equals( TAG_WIZARD ) && isProjectWizard( element, getTypeAttribute() ) )
+                if( element.getName().equals( TAG_WIZARD ) && isLiferayArtifactWizard( element, typeAttribute ) )
                 {
                     containers.add( new NewWizardAction( element ) );
-
-                    ISDKTemplate[] sdkTemplates = LiferayProjectCore.getSDKTemplates();
-
-                    List<ISDKTemplate> sdkTemplateList = Arrays.asList( sdkTemplates );
-
-                    Collections.sort( sdkTemplateList, new SDKTemplateComparator() );
-
-                    for( ISDKTemplate template : sdkTemplates )
-                    {
-                        NewWizardAction wizardAction = new NewWizardAction( element );
-                        wizardAction.setProjectType( template.getFacetId() );
-
-                        if( template != null )
-                        {
-                            wizardAction.setImageDescriptor( ImageDescriptor.createFromURL( ProjectUIPlugin.getDefault().getBundle().getEntry(
-                                "/icons/n16/" + template.getShortName() + "_new.png" ) ) ); //$NON-NLS-1$ //$NON-NLS-2$
-                            wizardAction.setText( wizardAction.getText().replaceAll( Msgs.liferayPlugin, NLS.bind( Msgs.plugin, template.getDisplayName()) ));
-                        }
-
-                        containers.add( wizardAction );
-                    }
                 }
             }
         }
@@ -128,6 +90,24 @@ public class NewPluginProjectDropDownAction extends Action implements IMenuCreat
         Arrays.sort( actions );
 
         return actions;
+    }
+
+    public static Action getDefaultAction()
+    {
+        Action[] actions = getNewProjectActions();
+
+        if( actions.length > 0 )
+        {
+            for( Action action : actions )
+            {
+                if( action instanceof NewWizardAction && action.getId().equals( DEFAULT_WIZARD_ID ) )
+                {
+                    return action;
+                }
+            }
+        }
+
+        return null;
     }
 
     public NewWizardAction[] getExtraProjectActions()
@@ -157,16 +137,9 @@ public class NewPluginProjectDropDownAction extends Action implements IMenuCreat
         return actions;
     }
 
-    public Action getDefaultAction()
+    protected static String getExtraTypeAttribute()
     {
-        Action[] actions = getNewProjectActions();
-
-        if( actions.length > 0 )
-        {
-            return actions[0];
-        }
-
-        return null;
+        return "liferay_extra_project"; //$NON-NLS-1$
     }
 
     public Menu getMenu( Control parent )
@@ -192,25 +165,62 @@ public class NewPluginProjectDropDownAction extends Action implements IMenuCreat
             // }
 
             // only do the first project action (not the 5 separate ones)
-            actions[0].setShell( fWizardShell );
-            ActionContributionItem item = new ActionContributionItem( actions[0] );
-            item.fill( fMenu, -1 );
 
-            new Separator().fill( fMenu, -1 );
+            for( NewWizardAction action : actions )
+            {
+                action.setShell( fWizardShell );
+                ActionContributionItem projectItem = new ActionContributionItem( action );
+                projectItem.fill( fMenu, -1 );
+            }
 
             NewWizardAction importAction = new ImportLiferayProjectWizardAction();
             importAction.setShell( fWizardShell );
-            item = new ActionContributionItem( importAction );
+            ActionContributionItem item = new ActionContributionItem( importAction );
             item.fill( fMenu, -1 );
 
-            NewWizardAction[] extraActions = getExtraProjectActions();
+            NewWizardAction[] projectExtraActions = getExtraProjectActions();
 
-            for( NewWizardAction extraAction : extraActions )
+            for( NewWizardAction extraAction : projectExtraActions )
             {
                 extraAction.setShell( fWizardShell );
 
                 ActionContributionItem extraItem = new ActionContributionItem( extraAction );
                 extraItem.fill( fMenu, -1 );
+            }
+
+            new Separator().fill( fMenu, -1 );
+
+            // add non project items
+            NewWizardAction[] nonProjectActions = getActionFromDescriptors( getNonProjectTypeAttribute() );
+
+            for( NewWizardAction action : nonProjectActions )
+            {
+                action.setShell( fWizardShell );
+
+                ActionContributionItem noProjectitem = new ActionContributionItem( action );
+                noProjectitem.fill( fMenu, -1 );
+            }
+
+            new Separator().fill( fMenu, -1 );
+
+            NewWizardAction[] noProjectExtraActions = getActionFromDescriptors( getNonProjectExtraTypeAttribute() );
+
+            for( NewWizardAction action : noProjectExtraActions )
+            {
+                action.setShell( fWizardShell );
+
+                ActionContributionItem noProjectExtraitem = new ActionContributionItem( action );
+                noProjectExtraitem.fill( fMenu, -1 );
+            }
+
+            new Separator().fill( fMenu, -1 );
+
+            Action[] sdkActions = getSdkActions( parent.getShell() );
+
+            for( Action action : sdkActions )
+            {
+                ActionContributionItem sdkItem = new ActionContributionItem( action );
+                sdkItem.fill( fMenu, -1 );
             }
         }
 
@@ -222,38 +232,90 @@ public class NewPluginProjectDropDownAction extends Action implements IMenuCreat
         return null;
     }
 
+
+
+    public static NewWizardAction[] getNewProjectActions()
+    {
+        ArrayList<NewWizardAction> containers = new ArrayList<NewWizardAction>();
+
+        IExtensionPoint extensionPoint =
+            Platform.getExtensionRegistry().getExtensionPoint( PlatformUI.PLUGIN_ID, PL_NEW );
+
+        if( extensionPoint != null )
+        {
+            IConfigurationElement[] elements = extensionPoint.getConfigurationElements();
+
+            for( IConfigurationElement element : elements )
+            {
+                if( element.getName().equals( TAG_WIZARD ) && isProjectWizard( element, getTypeAttribute() ) )
+                {
+                    containers.add( new NewWizardAction( element ) );
+                }
+            }
+        }
+
+        NewWizardAction[] actions = (NewWizardAction[]) containers.toArray( new NewWizardAction[containers.size()] );
+
+        Arrays.sort( actions );
+
+        return actions;
+    }
+
+    protected String getNonProjectExtraTypeAttribute()
+    {
+        return "liferay_extra_artifact"; //$NON-NLS-1$
+    }
+
+    protected String getNonProjectTypeAttribute()
+    {
+        return "liferay_artifact"; //$NON-NLS-1$
+    }
+
+    protected Action[] getSdkActions( Shell shell )
+    {
+        return new Action[] { new NewPluginsSDKAction( shell ), new NewServerAction( shell ) };
+    }
+
+    protected static String getTypeAttribute()
+    {
+        return "liferay_project"; //$NON-NLS-1$
+    }
+
     public void init( IWorkbenchWindow window )
     {
         fWizardShell = window.getShell();
     }
 
-    public void run( IAction action )
+    private boolean isLiferayArtifactWizard( IConfigurationElement element, String typeAttribute )
     {
-        getDefaultAction().run();
+        IConfigurationElement[] classElements = element.getChildren( TAG_CLASS );
+
+        if( classElements.length > 0 )
+        {
+            for( IConfigurationElement classElement : classElements )
+            {
+                IConfigurationElement[] paramElements = classElement.getChildren( TAG_PARAMETER );
+
+                for( IConfigurationElement paramElement : paramElements )
+                {
+                    String tagName = paramElement.getAttribute( TAG_NAME );
+                    if( tagName != null && tagName.equals( typeAttribute ) )
+                    {
+                        return Boolean.valueOf( paramElement.getAttribute( TAG_VALUE ) ).booleanValue();
+                    }
+                }
+            }
+        }
+
+        // old way, deprecated
+        if( Boolean.valueOf( element.getAttribute( getTypeAttribute() ) ).booleanValue() )
+        {
+            return true;
+        }
+
+        return false;
     }
 
-    public void selectionChanged( IAction action, ISelection selection )
-    {
-    }
-
-    // private String[] getTypes(IConfigurationElement element) {
-    // IConfigurationElement[] classElements = element.getChildren(TAG_CLASS);
-    //
-    // if (classElements.length > 0) {
-    // for (IConfigurationElement classElement : classElements) {
-    // IConfigurationElement[] paramElements =
-    // classElement.getChildren(TAG_PARAMETER);
-    //
-    // for (IConfigurationElement paramElement : paramElements) {
-    // if ("types".equals(paramElement.getAttribute(TAG_NAME))) {
-    // return paramElement.getAttribute(TAG_VALUE).split(",");
-    // }
-    // }
-    // }
-    // }
-    //
-    // return new String[0];
-    // }
 
     private static boolean isProjectWizard( IConfigurationElement element, String typeAttribute )
     {
@@ -284,24 +346,33 @@ public class NewPluginProjectDropDownAction extends Action implements IMenuCreat
         return false;
     }
 
-    protected static String getExtraTypeAttribute()
+    public void run( IAction action )
     {
-        return "liferay_extra_project"; //$NON-NLS-1$
+        getDefaultAction().run();
     }
 
-    protected static String getTypeAttribute()
+    public void selectionChanged( IAction action, ISelection selection )
     {
-        return "liferay_project"; //$NON-NLS-1$
     }
 
-    private static class Msgs extends NLS
-    {
-        public static String liferayPlugin;
-        public static String plugin;
+    // private String[] getTypes(IConfigurationElement element) {
+    // IConfigurationElement[] classElements = element.getChildren(TAG_CLASS);
+    //
+    // if (classElements.length > 0) {
+    // for (IConfigurationElement classElement : classElements) {
+    // IConfigurationElement[] paramElements =
+    // classElement.getChildren(TAG_PARAMETER);
+    //
+    // for (IConfigurationElement paramElement : paramElements) {
+    // if ("types".equals(paramElement.getAttribute(TAG_NAME))) {
+    // return paramElement.getAttribute(TAG_VALUE).split(",");
+    // }
+    // }
+    // }
+    // }
+    //
+    // return new String[0];
+    // }
 
-        static
-        {
-            initializeMessages( NewPluginProjectDropDownAction.class.getName(), Msgs.class );
-        }
-    }
+
 }

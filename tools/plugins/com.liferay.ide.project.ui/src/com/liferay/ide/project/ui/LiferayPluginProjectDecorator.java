@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -14,6 +14,8 @@
  *******************************************************************************/
 
 package com.liferay.ide.project.ui;
+
+import com.liferay.ide.project.core.BundleProjectNature;
 
 import java.net.URL;
 
@@ -31,6 +33,7 @@ import org.eclipse.wst.common.project.facet.core.FacetedProjectFramework;
 
 /**
  * @author Greg Amerson
+ * @author Terry Jia
  */
 public class LiferayPluginProjectDecorator extends LabelProvider implements ILightweightLabelDecorator
 {
@@ -51,12 +54,18 @@ public class LiferayPluginProjectDecorator extends LabelProvider implements ILig
 
     private static ImageDescriptor PORTLET;
 
+    private static ImageDescriptor BUNDLE;
+
     /* The constants are duplicated here to avoid plugin loading. */
     private static final String PORTLET_FACET = "liferay.portlet"; //$NON-NLS-1$
 
     private static ImageDescriptor THEME;
 
     private static final String THEME_FACET = "liferay.theme"; //$NON-NLS-1$
+
+    private static ImageDescriptor WEB;
+
+    private static final String WEB_FACET = "liferay.web"; //$NON-NLS-1$
 
     private static ImageDescriptor getExt()
     {
@@ -90,7 +99,7 @@ public class LiferayPluginProjectDecorator extends LabelProvider implements ILig
 
             IPath path = new Path( ICON_DIR ).append( gif );
 
-            URL gifImageURL = FileLocator.find( Platform.getBundle( ProjectUIPlugin.PLUGIN_ID ), path, null );
+            URL gifImageURL = FileLocator.find( Platform.getBundle( ProjectUI.PLUGIN_ID ), path, null );
 
             if( gifImageURL != null )
             {
@@ -121,6 +130,16 @@ public class LiferayPluginProjectDecorator extends LabelProvider implements ILig
         return PORTLET;
     }
 
+    private static ImageDescriptor getBundle()
+    {
+        if( BUNDLE == null )
+        {
+            BUNDLE = getImageDescriptor( "liferay_bundle_ovr" ); //$NON-NLS-1$
+        }
+
+        return BUNDLE;
+    }
+
     private static ImageDescriptor getTheme()
     {
         if( THEME == null )
@@ -129,6 +148,16 @@ public class LiferayPluginProjectDecorator extends LabelProvider implements ILig
         }
 
         return THEME;
+    }
+
+    private static ImageDescriptor getWeb()
+    {
+        if( WEB == null )
+        {
+            WEB = getImageDescriptor( "liferay_ovr" ); //$NON-NLS-1$
+        }
+
+        return WEB;
     }
 
     public void decorate( Object element, IDecoration decoration )
@@ -159,6 +188,14 @@ public class LiferayPluginProjectDecorator extends LabelProvider implements ILig
             {
                 overlay = getTheme();
             }
+            else if( hasFacet( project, WEB_FACET ) )
+            {
+                overlay = getWeb();
+            }
+            else if ( hasNature( project, BundleProjectNature.ID ) )
+            {
+                overlay = getBundle();
+            }
 
             if( overlay != null )
             {
@@ -171,6 +208,18 @@ public class LiferayPluginProjectDecorator extends LabelProvider implements ILig
         }
     }
 
+    private boolean hasNature( IProject project, String id )
+    {
+        try
+        {
+            return project.hasNature( id );
+        }
+        catch( CoreException e )
+        {
+            return false;
+        }
+    }
+
     private boolean hasFacet( IProject project, String facet )
     {
         try
@@ -179,7 +228,7 @@ public class LiferayPluginProjectDecorator extends LabelProvider implements ILig
         }
         catch( CoreException e )
         {
-            ProjectUIPlugin.logError( e );
+            ProjectUI.logError( e );
 
             return false;
         }

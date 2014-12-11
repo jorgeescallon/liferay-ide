@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,14 +17,14 @@
 
 package com.liferay.ide.layouttpl.core.operation;
 
+import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.layouttpl.core.LayoutTplCore;
 
 import java.util.Set;
 
-import org.eclipse.core.resources.IContainer;
-import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Path;
@@ -32,7 +32,6 @@ import org.eclipse.jdt.core.JavaConventions;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.wst.common.componentcore.internal.operation.ArtifactEditOperationDataModelProvider;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
 
 /**
  * @author Greg Amerson
@@ -49,29 +48,11 @@ public class NewLayoutTplDataModelProvider extends ArtifactEditOperationDataMode
         super();
     }
 
-    private boolean checkDocrootFileExists(final IPath path)
+    private boolean checkDocrootFileExists( final IPath path )
     {
-        IVirtualFolder webappRoot = CoreUtil.getDocroot( getTargetProject() );
+        IFolder defaultDocroot = LiferayCore.create( getTargetProject() ).getDefaultDocrootFolder();
 
-        if( webappRoot == null )
-        {
-            return false;
-        }
-
-        for( IContainer container : webappRoot.getUnderlyingFolders() )
-        {
-            if( container != null && container.exists() )
-            {
-                IFile file = container.getFile( path );
-
-                if( file.exists() )
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return defaultDocroot != null && defaultDocroot.exists();
     }
 
     @Override
@@ -102,15 +83,14 @@ public class NewLayoutTplDataModelProvider extends ArtifactEditOperationDataMode
         {
             return "/" + getStringProperty( LAYOUT_TEMPLATE_ID ) + ".png";  //$NON-NLS-1$//$NON-NLS-2$
         }
-        else if( LAYOUT_IMAGE_BLANK_COLUMN.equals( propertyName ) )
+        else if( LAYOUT_IMAGE_1_COLUMN.equals( propertyName ) )
         {
             return true;
         }
-        else if( LAYOUT_IMAGE_1_COLUMN.equals( propertyName ) || LAYOUT_IMAGE_1_2_1_COLUMN.equals( propertyName ) ||
-            LAYOUT_IMAGE_1_2_I_COLUMN.equals( propertyName ) || LAYOUT_IMAGE_1_2_II_COLUMN.equals( propertyName ) ||
-            LAYOUT_IMAGE_2_2_COLUMN.equals( propertyName ) || LAYOUT_IMAGE_2_I_COLUMN.equals( propertyName ) ||
-            LAYOUT_IMAGE_2_II_COLUMN.equals( propertyName ) || LAYOUT_IMAGE_2_III_COLUMN.equals( propertyName ) ||
-            LAYOUT_IMAGE_3_COLUMN.equals( propertyName ) )
+        else if( LAYOUT_IMAGE_1_2_1_COLUMN.equals( propertyName ) || LAYOUT_IMAGE_1_2_I_COLUMN.equals( propertyName ) ||
+            LAYOUT_IMAGE_1_2_II_COLUMN.equals( propertyName ) || LAYOUT_IMAGE_2_2_COLUMN.equals( propertyName ) ||
+            LAYOUT_IMAGE_2_I_COLUMN.equals( propertyName ) || LAYOUT_IMAGE_2_II_COLUMN.equals( propertyName ) ||
+            LAYOUT_IMAGE_2_III_COLUMN.equals( propertyName ) || LAYOUT_IMAGE_3_COLUMN.equals( propertyName ) )
         {
 
             return false;
@@ -139,7 +119,6 @@ public class NewLayoutTplDataModelProvider extends ArtifactEditOperationDataMode
         propertyNames.add( LAYOUT_IMAGE_2_II_COLUMN );
         propertyNames.add( LAYOUT_IMAGE_2_III_COLUMN );
         propertyNames.add( LAYOUT_IMAGE_3_COLUMN );
-        propertyNames.add( LAYOUT_IMAGE_BLANK_COLUMN );
 
         propertyNames.add( LAYOUT_TPL_FILE_CREATED );
 

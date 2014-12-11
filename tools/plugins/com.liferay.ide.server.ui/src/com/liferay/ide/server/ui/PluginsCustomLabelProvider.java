@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,8 +15,6 @@
 
 package com.liferay.ide.server.ui;
 
-import com.liferay.ide.project.core.ISDKTemplate;
-import com.liferay.ide.project.core.LiferayProjectCore;
 import com.liferay.ide.project.core.util.ProjectUtil;
 
 import org.eclipse.core.resources.IProject;
@@ -45,8 +43,8 @@ public class PluginsCustomLabelProvider extends LabelProvider
     {
         if( element instanceof PluginsContent )
         {
-            return LiferayServerUIPlugin.imageDescriptorFromPlugin(
-                LiferayServerUIPlugin.PLUGIN_ID, "/icons/e16/plugin.png" ).createImage(); //$NON-NLS-1$
+            return LiferayServerUI.imageDescriptorFromPlugin(
+                LiferayServerUI.PLUGIN_ID, "/icons/e16/plugin.png" ).createImage(); //$NON-NLS-1$
         }
         else if( element instanceof ModuleServer )
         {
@@ -67,16 +65,19 @@ public class PluginsCustomLabelProvider extends LabelProvider
                     if( facetedProject != null )
                     {
                         IProjectFacet liferayFacet = ProjectUtil.getLiferayFacet( facetedProject );
-                        ISDKTemplate sdkTemplate = LiferayProjectCore.getSDKTemplate( liferayFacet );
 
-                        imageKey = sdkTemplate.getShortName();
+                        if( liferayFacet != null )
+                        {
+                            final String id = liferayFacet.getId();
+                            imageKey = id.substring( id.indexOf( '.' ) + 1, id.length() );
+                        }
                     }
                     else
                     {
                         imageKey = ProjectUtil.getLiferayPluginType( project.getLocation().toOSString() );
                     }
 
-                    return LiferayServerUIPlugin.getDefault().getImageRegistry().get( imageKey );
+                    return LiferayServerUI.getDefault().getImageRegistry().get( imageKey );
                 }
             }
             catch( Exception ex )
@@ -95,10 +96,8 @@ public class PluginsCustomLabelProvider extends LabelProvider
         {
             return Msgs.liferayPlugins;
         }
-        else
-        {
-            return null;
-        }
+
+        return null;
     }
 
     private static class Msgs extends NLS

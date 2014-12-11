@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,19 +15,17 @@
 
 package com.liferay.ide.project.core.facet;
 
-import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.ide.core.ILiferayProject;
+import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.FileUtil;
 import com.liferay.ide.core.util.StringPool;
-import com.liferay.ide.project.core.LiferayProjectCore;
+import com.liferay.ide.project.core.ProjectCore;
 import com.liferay.ide.project.core.util.ProjectUtil;
 import com.liferay.ide.sdk.core.ISDKConstants;
-import com.liferay.ide.sdk.core.SDK;
-import com.liferay.ide.server.util.ServerUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -51,7 +49,7 @@ import org.w3c.dom.Element;
 
 /**
  * @author Greg Amerson
- * @author kamesh.sampath
+ * @author Kamesh Sampath
  */
 @SuppressWarnings( "restriction" )
 public class ExtPluginFacetInstall extends PluginFacetInstall
@@ -68,6 +66,7 @@ public class ExtPluginFacetInstall extends PluginFacetInstall
 
         if( masterModel != null && masterModel.getBooleanProperty( CREATE_PROJECT_OPERATION ) )
         {
+            /*
             // get the template zip for portlets and extract into the project
             SDK sdk = getSDK();
 
@@ -90,7 +89,18 @@ public class ExtPluginFacetInstall extends PluginFacetInstall
 
             processNewFiles( tempInstallPath );
             // cleanup ext temp files
-            FileUtil.deleteDir( tempInstallPath.toFile(), true );
+            FileUtil.deleteDir( installPath.toFile(), true );
+            */
+
+            // IDE-1122 SDK creating project has been moved to Class NewPluginProjectWizard
+            String extName = this.masterModel.getStringProperty( EXT_NAME );
+
+            IPath projectTempPath = (IPath) masterModel.getProperty( PROJECT_TEMP_PATH );
+
+            processNewFiles( projectTempPath.append( extName + ISDKConstants.EXT_PLUGIN_PROJECT_SUFFIX ) );
+
+            FileUtil.deleteDir( projectTempPath.toFile(), true );
+            // End IDE-1122
 
             try
             {
@@ -98,14 +108,13 @@ public class ExtPluginFacetInstall extends PluginFacetInstall
             }
             catch( Exception e )
             {
-                LiferayProjectCore.logError( e );
+                ProjectCore.logError( e );
             }
 
             IFolder webappRoot = this.project.getFolder( ISDKConstants.DEFAULT_DOCROOT_FOLDER );
 
             deleteFolder( webappRoot.getFolder( "WEB-INF/src" ) ); //$NON-NLS-1$
             deleteFolder( webappRoot.getFolder( "WEB-INF/classes" ) ); //$NON-NLS-1$
-            deleteFolder( webappRoot.getFolder( "WEB-INF/ext-web/docroot/WEB-INF/lib" ) ); //$NON-NLS-1$
         }
 
         if( shouldSetupExtClasspath() )
@@ -145,11 +154,22 @@ public class ExtPluginFacetInstall extends PluginFacetInstall
 
             javaProject.setRawClasspath(
                 newRawClasspath.toArray( new IClasspathEntry[0] ),
-                this.project.getFolder( IPluginFacetConstants.EXT_PLUGIN_SDK_OUTPUT_FOLDERS[0] ).getFullPath(), null );
+                this.project.getFolder( IPluginFacetConstants.EXT_PLUGIN_DEFAULT_OUTPUT_FOLDER ).getFullPath(), null );
 
             ProjectUtil.fixExtProjectSrcFolderLinks( this.project );
             // fixTilesDefExtFile();
         }
+
+        //IDE-1239 need to make sure and delete docroot/WEB-INF/ext-web/docroot/WEB-INF/lib
+        removeUnneededFolders( this.project );
+    }
+
+    private void removeUnneededFolders( IProject project ) throws CoreException
+    {
+        final ILiferayProject lrproject = LiferayCore.create( project );
+        final IFolder webappRoot = lrproject.getDefaultDocrootFolder();
+
+        deleteFolder( webappRoot.getFolder( "WEB-INF/lib" ) ); //$NON-NLS-1$
     }
 
     protected void deleteFolder( IFolder folder ) throws CoreException
@@ -163,7 +183,7 @@ public class ExtPluginFacetInstall extends PluginFacetInstall
 
     protected void fixTilesDefExtFile()
     {
-        IFolder webappRoot = CoreUtil.getDefaultDocrootFolder( this.project );
+        IFolder webappRoot = LiferayCore.create( this.project ).getDefaultDocrootFolder();
 
         IFile tilesDefExtFile = webappRoot.getFile( "WEB-INF/ext-web/docroot/WEB-INF/tiles-defs-ext.xml" ); //$NON-NLS-1$
 
@@ -197,7 +217,7 @@ public class ExtPluginFacetInstall extends PluginFacetInstall
             }
             catch( Exception e )
             {
-                LiferayProjectCore.logError( e );
+                ProjectCore.logError( e );
             }
         }
     }

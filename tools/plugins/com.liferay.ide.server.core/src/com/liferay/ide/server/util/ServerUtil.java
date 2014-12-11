@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,45 +16,38 @@
 package com.liferay.ide.server.util;
 
 import com.liferay.ide.core.ILiferayConstants;
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
-import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.sdk.core.ISDKConstants;
 import com.liferay.ide.server.core.ILiferayRuntime;
+import com.liferay.ide.server.core.ILiferayServer;
 import com.liferay.ide.server.core.LiferayServerCore;
+import com.liferay.ide.server.remote.IRemoteServer;
+import com.liferay.ide.server.remote.IServerManagerConnection;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Enumeration;
-import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
-import java.util.TimeZone;
+import java.util.Set;
 import java.util.jar.JarFile;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.commons.io.IOUtils;
-import org.eclipse.core.resources.IContainer;
-import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.DebugPlugin;
@@ -64,11 +57,13 @@ import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.internal.launching.StandardVMType;
 import org.eclipse.jdt.launching.IVMInstall;
 import org.eclipse.jdt.launching.JavaRuntime;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
+import org.eclipse.wst.common.componentcore.ComponentCore;
+import org.eclipse.wst.common.componentcore.resources.IVirtualComponent;
 import org.eclipse.wst.common.project.facet.core.IFacetedProject;
 import org.eclipse.wst.common.project.facet.core.IProjectFacet;
 import org.eclipse.wst.common.project.facet.core.IProjectFacetVersion;
 import org.eclipse.wst.common.project.facet.core.ProjectFacetsManager;
+import org.eclipse.wst.common.project.facet.core.runtime.RuntimeManager;
 import org.eclipse.wst.common.project.facet.core.runtime.internal.BridgedRuntime;
 import org.eclipse.wst.server.core.IRuntime;
 import org.eclipse.wst.server.core.IRuntimeType;
@@ -77,7 +72,6 @@ import org.eclipse.wst.server.core.IServer;
 import org.eclipse.wst.server.core.IServerType;
 import org.eclipse.wst.server.core.IServerWorkingCopy;
 import org.eclipse.wst.server.core.ServerCore;
-import org.eclipse.wst.server.core.model.IModuleResourceDelta;
 import org.osgi.framework.Version;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -85,102 +79,18 @@ import org.w3c.dom.NodeList;
 
 /**
  * @author Gregory Amerson
+ * @author Cindy Li
+ * @author Tao Tao
+ * @author Kuo Zhang
+ * @author Simon Jiang
  */
 @SuppressWarnings( "restriction" )
 public class ServerUtil
 {
 
-    private static final Version v6110 = ILiferayConstants.V6110;
-//    private static final Version v6120 = new Version( 6, 1, 20 );
-
-    private static final Version v612 = ILiferayConstants.V612;
-
-    private static final Version v620 = ILiferayConstants.V620;
-
-    private static void addRemoveProps(
-        IPath deltaPath, IResource deltaResource, ZipOutputStream zip, Map<ZipEntry, String> deleteEntries,
-        String deletePrefix ) throws IOException
+    public static Map<String, String> configureAppServerProperties( ILiferayRuntime liferayRuntime )
     {
-        String archive = removeArchive( deltaPath.toPortableString() );
-
-        ZipEntry zipEntry = null;
-
-        // check to see if we already have an entry for this archive
-        for( ZipEntry entry : deleteEntries.keySet() )
-        {
-            if( entry.getName().startsWith( archive ) )
-            {
-                zipEntry = entry;
-            }
-        }
-
-        if( zipEntry == null )
-        {
-            zipEntry = new ZipEntry( archive + "META-INF/" + deletePrefix + "-partialapp-delete.props" ); //$NON-NLS-1$ //$NON-NLS-2$
-        }
-
-        String existingFiles = deleteEntries.get( zipEntry );
-
-        // String file = encodeRemovedPath(deltaPath.toPortableString().substring(archive.length()));
-        String file = deltaPath.toPortableString().substring( archive.length() );
-
-        if( deltaResource.getType() == IResource.FOLDER )
-        {
-            file += "/.*"; //$NON-NLS-1$
-        }
-
-        deleteEntries.put( zipEntry, ( existingFiles != null ? existingFiles : StringPool.EMPTY ) + ( file + "\n" ) ); //$NON-NLS-1$
-    }
-
-    private static void addToZip( IPath path, IResource resource, ZipOutputStream zip, boolean adjustGMTOffset )
-        throws IOException, CoreException
-    {
-        switch( resource.getType() )
-        {
-            case IResource.FILE:
-                ZipEntry zipEntry = new ZipEntry( path.toString() );
-
-                zip.putNextEntry( zipEntry );
-
-                InputStream contents = ( (IFile) resource ).getContents();
-
-                if( adjustGMTOffset )
-                {
-                    TimeZone currentTimeZone = TimeZone.getDefault();
-                    Calendar currentDt = new GregorianCalendar( currentTimeZone, Locale.getDefault() );
-
-                    // Get the Offset from GMT taking current TZ into account
-                    int gmtOffset =
-                        currentTimeZone.getOffset(
-                            currentDt.get( Calendar.ERA ), currentDt.get( Calendar.YEAR ),
-                            currentDt.get( Calendar.MONTH ), currentDt.get( Calendar.DAY_OF_MONTH ),
-                            currentDt.get( Calendar.DAY_OF_WEEK ), currentDt.get( Calendar.MILLISECOND ) );
-
-                    zipEntry.setTime( System.currentTimeMillis() + ( gmtOffset * -1 ) );
-                }
-
-                try
-                {
-                    IOUtils.copy( contents, zip );
-                }
-                finally
-                {
-                    contents.close();
-                }
-
-                break;
-
-            case IResource.FOLDER:
-            case IResource.PROJECT:
-                IContainer container = (IContainer) resource;
-
-                IResource[] members = container.members();
-
-                for( IResource res : members )
-                {
-                    addToZip( path.append( res.getName() ), res, zip, adjustGMTOffset );
-                }
-        }
+        return getSDKRequiredProperties( liferayRuntime );
     }
 
     public static Map<String, String> configureAppServerProperties( IProject project ) throws CoreException
@@ -198,111 +108,6 @@ public class ServerUtil
     public static IStatus createErrorStatus( String msg )
     {
         return new Status( IStatus.ERROR, LiferayServerCore.PLUGIN_ID, msg );
-    }
-
-    public static File createPartialEAR(
-        String archiveName, IModuleResourceDelta[] deltas, String deletePrefix, String deltaPrefix,
-        boolean adjustGMTOffset )
-    {
-        IPath path = LiferayServerCore.getTempLocation( "partial-ear", archiveName ); //$NON-NLS-1$
-
-        FileOutputStream outputStream = null;
-        ZipOutputStream zip = null;
-        File file = path.toFile();
-
-        file.getParentFile().mkdirs();
-
-        try
-        {
-            outputStream = new FileOutputStream( file );
-            zip = new ZipOutputStream( outputStream );
-
-            Map<ZipEntry, String> deleteEntries = new HashMap<ZipEntry, String>();
-
-            processResourceDeltasZip( deltas, zip, deleteEntries, deletePrefix, deltaPrefix, adjustGMTOffset );
-
-            for( ZipEntry entry : deleteEntries.keySet() )
-            {
-                zip.putNextEntry( entry );
-                zip.write( deleteEntries.get( entry ).getBytes() );
-            }
-
-            // if ((removedResources != null) && (removedResources.size() > 0)) {
-            // writeRemovedResources(removedResources, zip);
-            // }
-        }
-        catch( Exception ex )
-        {
-            ex.printStackTrace();
-        }
-        finally
-        {
-            if( zip != null )
-            {
-                try
-                {
-                    zip.close();
-                }
-                catch( IOException localIOException1 )
-                {
-
-                }
-            }
-        }
-
-        return file;
-    }
-
-    public static File createPartialWAR(
-        String archiveName, IModuleResourceDelta[] deltas, String deletePrefix, boolean adjustGMTOffset )
-    {
-        IPath path = LiferayServerCore.getTempLocation( "partial-war", archiveName ); //$NON-NLS-1$
-
-        FileOutputStream outputStream = null;
-        ZipOutputStream zip = null;
-        File file = path.toFile();
-
-        file.getParentFile().mkdirs();
-
-        try
-        {
-            outputStream = new FileOutputStream( file );
-            zip = new ZipOutputStream( outputStream );
-
-            Map<ZipEntry, String> deleteEntries = new HashMap<ZipEntry, String>();
-
-            processResourceDeltasZip( deltas, zip, deleteEntries, deletePrefix, StringPool.EMPTY, adjustGMTOffset );
-
-            for( ZipEntry entry : deleteEntries.keySet() )
-            {
-                zip.putNextEntry( entry );
-                zip.write( deleteEntries.get( entry ).getBytes() );
-            }
-
-            // if ((removedResources != null) && (removedResources.size() > 0)) {
-            // writeRemovedResources(removedResources, zip);
-            // }
-        }
-        catch( Exception ex )
-        {
-            ex.printStackTrace();
-        }
-        finally
-        {
-            if( zip != null )
-            {
-                try
-                {
-                    zip.close();
-                }
-                catch( IOException localIOException1 )
-                {
-
-                }
-            }
-        }
-
-        return file;
     }
 
     public static IServerWorkingCopy createServerForRuntime( IRuntime runtime )
@@ -324,43 +129,38 @@ public class ServerUtil
         return null;
     }
 
-    public static IPath getAppServerDir( org.eclipse.wst.common.project.facet.core.runtime.IRuntime serverRuntime )
+    public static IProject findProjectByContextName( String contextName )
     {
-        ILiferayRuntime runtime = (ILiferayRuntime) getRuntimeAdapter( serverRuntime, ILiferayRuntime.class );
+        IProject retval = null;
 
-        return runtime != null ? runtime.getAppServerDir() : null;
-    }
-
-    public static String getAppServerPropertyKey( String propertyAppServerDeployDir, ILiferayRuntime runtime )
-    {
-        String retval = null;
-
-        try
+        if( ! CoreUtil.isNullOrEmpty( contextName ) )
         {
-            final Version version = new Version( runtime.getPortalVersion() );
-            final String type = runtime.getAppServerType();
-
-            if( ( CoreUtil.compareVersions( version, v620 ) >= 0 ) ||
-                ( CoreUtil.compareVersions( version, v612 ) >= 0 && CoreUtil.compareVersions( version, v6110 ) < 0 ) )
+            for( IProject project : CoreUtil.getAllProjects() )
             {
-                retval = MessageFormat.format( propertyAppServerDeployDir, "." + type + "." ); //$NON-NLS-1$ //$NON-NLS-2$
-            }
-        }
-        catch( Exception e )
-        {
-        }
-        finally
-        {
-            if( retval == null )
-            {
-                retval = MessageFormat.format( propertyAppServerDeployDir, "." ); //$NON-NLS-1$
+                final IVirtualComponent c = ComponentCore.createComponent( project, true );
+
+                if( c != null )
+                {
+                    final Properties metaProperties = c.getMetaProperties();
+
+                    if( metaProperties != null )
+                    {
+                        String contextRoot = metaProperties.getProperty( "context-root" ); //$NON-NLS-1$
+
+                        if( contextName.equals( contextRoot ) )
+                        {
+                            retval = project;
+                            break;
+                        }
+                    }
+                }
             }
         }
 
         return retval;
     }
 
-    public static Properties getCategories( IPath portalDir )
+    public static Properties getAllCategories( IPath portalDir )
     {
         Properties retval = null;
 
@@ -387,7 +187,7 @@ public class ServerUtil
                 }
 
                 retval = categories;
-
+                jar.close();
             }
             catch( IOException e )
             {
@@ -398,15 +198,100 @@ public class ServerUtil
         return retval;
     }
 
-    public static Properties getEntryCategories( IPath portalDir )
+    public static IPath getAppServerDir( org.eclipse.wst.common.project.facet.core.runtime.IRuntime serverRuntime )
     {
-        Properties categories = getCategories( portalDir );
+        ILiferayRuntime runtime = (ILiferayRuntime) getRuntimeAdapter( serverRuntime, ILiferayRuntime.class );
+
+        return runtime != null ? runtime.getAppServerDir() : null;
+    }
+
+    public static String getAppServerPropertyKey( String propertyAppServerDeployDir, ILiferayRuntime runtime )
+    {
+        String retval = null;
+
+        try
+        {
+            final Version version = new Version( runtime.getPortalVersion() );
+            final String type = runtime.getAppServerType();
+
+            if( ( CoreUtil.compareVersions( version, ILiferayConstants.V6130 ) >= 0 ) ||
+                ( CoreUtil.compareVersions( version, ILiferayConstants.V612 ) >= 0 && CoreUtil.compareVersions( version, ILiferayConstants.V6110 ) < 0 ) )
+            {
+                retval = MessageFormat.format( propertyAppServerDeployDir, "." + type + "." ); //$NON-NLS-1$ //$NON-NLS-2$
+            }
+        }
+        catch( Exception e )
+        {
+        }
+        finally
+        {
+            if( retval == null )
+            {
+                retval = MessageFormat.format( propertyAppServerDeployDir, "." ); //$NON-NLS-1$
+            }
+        }
+
+        return retval;
+    }
+
+    public static Set<IRuntime> getAvailableLiferayRuntimes()
+    {
+        Set<IRuntime> retval = new HashSet<IRuntime>();
+
+        IRuntime[] runtimes = ServerCore.getRuntimes();
+
+        for( IRuntime rt : runtimes )
+        {
+            if( isLiferayRuntime( rt ) )
+            {
+                retval.add( rt );
+            }
+        }
+
+        return retval;
+    }
+
+    public static Properties getEntryCategories( IPath portalDir, String portalVersion )
+    {
+        Properties categories = getAllCategories( portalDir );
 
         Properties retval = new Properties();
-        retval.put( "category.my", categories.getProperty( "category.my" ) + " Account Section" ); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-        retval.put( "category.portal", categories.getProperty( "category.portal" ) + " Section" ); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-        retval.put( "category.server", categories.getProperty( "category.server" ) + " Section" ); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-        retval.put( "category.content", categories.getProperty( "category.content" ) + " Section" ); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+
+        final String myKey = "category.my"; //$NON-NLS-1$
+        final String categoryMy = categories.getProperty( myKey );
+
+        if( ( portalVersion == null ) || ( CoreUtil.compareVersions( new Version( portalVersion ), ILiferayConstants.V620 ) < 0 ) )
+        {
+            final String portalKey = "category.portal"; //$NON-NLS-1$
+            final String serverKey = "category.server"; //$NON-NLS-1$
+            final String keyContent = "category.content"; //$NON-NLS-1$
+
+            retval.put( myKey, categoryMy + " Account Section" ); //$NON-NLS-1$
+            retval.put( portalKey, categories.getProperty( portalKey ) + " Section" ); //$NON-NLS-1$
+            retval.put( serverKey, categories.getProperty( serverKey ) + " Section" ); //$NON-NLS-1$
+            retval.put( keyContent, categories.getProperty( keyContent ) + " Section" ); //$NON-NLS-1$
+        }
+        else
+        {
+            final String keyUsers = "category.users"; //$NON-NLS-1$
+            final String keyApps = "category.apps"; //$NON-NLS-1$
+            final String keyConfig = "category.configuration"; //$NON-NLS-1$
+            final String keySites = "category.sites"; //$NON-NLS-1$
+            final String keySiteConfig = "category.site_administration.configuration"; //$NON-NLS-1$
+            final String keySiteContent = "category.site_administration.content"; //$NON-NLS-1$
+            final String keySitePages = "category.site_administration.pages"; //$NON-NLS-1$
+            final String keySiteUsers = "category.site_administration.users"; //$NON-NLS-1$
+
+            retval.put( myKey, categoryMy + " Account Administration" ); //$NON-NLS-1$
+            retval.put( keyUsers, "Control Panel - " + categories.getProperty( keyUsers ) ); //$NON-NLS-1$
+            retval.put( keyApps, "Control Panel - " + categories.getProperty( keyApps ) ); //$NON-NLS-1$
+            retval.put( keyConfig, "Control Panel - " + categories.getProperty( keyConfig ) ); //$NON-NLS-1$
+            retval.put( keySites, "Control Panel - " + categories.getProperty( keySites ) ); //$NON-NLS-1$
+            retval.put( keySiteConfig, "Site Administration - " + categories.getProperty( keySiteConfig ) ); //$NON-NLS-1$
+            retval.put( keySiteContent, "Site Administration - " + categories.getProperty( keySiteContent ) ); //$NON-NLS-1$
+            retval.put( keySitePages, "Site Administration - " + categories.getProperty( keySitePages ) ); //$NON-NLS-1$
+            retval.put( keySiteUsers, "Site Administration - " + categories.getProperty( keySiteUsers ) ); //$NON-NLS-1$
+        }
 
         return retval;
     }
@@ -421,6 +306,11 @@ public class ServerUtil
         {
             return null;
         }
+    }
+
+    public static org.eclipse.wst.common.project.facet.core.runtime.IRuntime getFacetRuntime( IRuntime runtime )
+    {
+        return RuntimeManager.getRuntime( runtime.getName() );
     }
 
     public static IProjectFacet getLiferayFacet( IFacetedProject facetedProject )
@@ -484,6 +374,11 @@ public class ServerUtil
         return null;
     }
 
+    public static ILiferayRuntime getLiferayRuntime( IRuntime runtime, IProgressMonitor monitor )
+    {
+        return (ILiferayRuntime) runtime.loadAdapter( ILiferayRuntime.class, monitor );
+    }
+
     public static ILiferayRuntime getLiferayRuntime( IServer server )
     {
         if( server != null )
@@ -492,6 +387,11 @@ public class ServerUtil
         }
 
         return null;
+    }
+
+    public static ILiferayRuntime getLiferayRuntime( String name )
+    {
+        return getLiferayRuntime( getRuntime( name ) );
     }
 
     public static IPath getPortalDir( IJavaProject project )
@@ -507,10 +407,57 @@ public class ServerUtil
 
         if( liferayProject != null )
         {
-            retval = liferayProject.getAppServerPortalDir();
+            final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+            if( portal != null )
+            {
+                retval = portal.getAppServerPortalDir();
+            }
         }
 
         return retval;
+    }
+
+    public static Properties getPortletCategories( IPath portalDir )
+    {
+        Properties props = getAllCategories( portalDir );
+        Properties categories = new Properties();
+        Enumeration<?> names = props.propertyNames();
+
+        String[] controlPanelCategories =
+        {   "category.my", //$NON-NLS-1$
+            "category.users", //$NON-NLS-1$
+            "category.apps", //$NON-NLS-1$
+            "category.configuration", //$NON-NLS-1$
+            "category.sites", //$NON-NLS-1$
+            "category.site_administration.configuration", //$NON-NLS-1$
+            "category.site_administration.content", //$NON-NLS-1$
+            "category.site_administration.pages", //$NON-NLS-1$
+            "category.site_administration.users" //$NON-NLS-1$
+        };
+
+        while( names.hasMoreElements() )
+        {
+            boolean isControlPanelCategory = false;
+
+            String name = names.nextElement().toString();
+
+            for( String category : controlPanelCategories )
+            {
+                if( name.equals( category ) )
+                {
+                    isControlPanelCategory = true;
+                    break;
+                }
+            }
+
+            if( !isControlPanelCategory )
+            {
+                categories.put( name, props.getProperty( name ) );
+            }
+        }
+
+        return categories;
     }
 
     public static IRuntime getRuntime( IProject project ) throws CoreException
@@ -521,6 +468,30 @@ public class ServerUtil
     public static IRuntime getRuntime( org.eclipse.wst.common.project.facet.core.runtime.IRuntime runtime )
     {
         return ServerCore.findRuntime( runtime.getProperty( "id" ) ); //$NON-NLS-1$
+    }
+
+    public static IRuntime getRuntime( String runtimeName )
+    {
+        IRuntime retval = null;
+
+        if( ! CoreUtil.isNullOrEmpty( runtimeName ) )
+        {
+            final IRuntime[] runtimes = ServerCore.getRuntimes();
+
+            if( runtimes != null )
+            {
+                for( final IRuntime runtime : runtimes )
+                {
+                    if( runtimeName.equals( runtime.getName() ) )
+                    {
+                        retval = runtime;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return retval;
     }
 
     public static IRuntimeWorkingCopy getRuntime( String runtimeTypeId, IPath location )
@@ -581,6 +552,33 @@ public class ServerUtil
         return null;
     }
 
+    public static Version getRuntimeVersion( IProject project )
+    {
+        Version retval = null;
+
+        if( project != null )
+        {
+            final ILiferayProject liferayProject = LiferayCore.create( project );
+
+            if( liferayProject != null )
+            {
+                final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+                if( portal != null )
+                {
+                    final String version = portal.getVersion();
+
+                    if( version != null )
+                    {
+                        retval = new Version( version );
+                    }
+                }
+            }
+        }
+
+        return retval;
+    }
+
     public static Map<String, String> getSDKRequiredProperties( ILiferayRuntime appServer )
     {
         Map<String, String> properties = new HashMap<String, String>();
@@ -592,6 +590,8 @@ public class ServerUtil
         String deployDir = appServer.getAppServerDeployDir().toOSString();
 
         String libGlobalDir = appServer.getAppServerLibGlobalDir().toOSString();
+
+        String parentDir = new File( dir ).getParent();
 
         String portalDir = appServer.getAppServerPortalDir().toOSString();
 
@@ -609,9 +609,16 @@ public class ServerUtil
         properties.put( appServerDirKey, dir );
         properties.put( appServerDeployDirKey, deployDir );
         properties.put( appServerLibGlobalDirKey, libGlobalDir );
+        //IDE-1268 need to always specify app.server.parent.dir, even though it is only useful in 6.1.2/6.2.0 or greater
+        properties.put( ISDKConstants.PROPERTY_APP_SERVER_PARENT_DIR, parentDir );
         properties.put( appServerPortalDirKey, portalDir );
 
         return properties;
+    }
+
+    public static IServerManagerConnection getServerManagerConnection( IServer server, IProgressMonitor monitor )
+    {
+        return LiferayServerCore.getRemoteConnection( (IRemoteServer) server.loadAdapter( IRemoteServer.class, monitor ) );
     }
 
     public static IServer[] getServersForRuntime( IRuntime runtime )
@@ -711,12 +718,10 @@ public class ServerUtil
         }
         return false;
     }
-
     public static boolean isExtProject( IProject project )
     {
         return hasFacet( project, ProjectFacetsManager.getProjectFacet( "liferay.ext" ) ); //$NON-NLS-1$
     }
-
     public static boolean isLiferayFacet( IProjectFacet projectFacet )
     {
         return projectFacet != null && projectFacet.getId().startsWith( "liferay" ); //$NON-NLS-1$
@@ -748,6 +753,7 @@ public class ServerUtil
     {
         return getLiferayRuntime( server ) != null;
     }
+
     public static boolean isValidPropertiesFile( File file )
     {
         if( file == null || !file.exists() )
@@ -767,68 +773,6 @@ public class ServerUtil
         return true;
 
     }
-    private static void processResourceDeltasZip(
-        IModuleResourceDelta[] deltas, ZipOutputStream zip, Map<ZipEntry, String> deleteEntries, String deletePrefix,
-        String deltaPrefix, boolean adjustGMTOffset ) throws IOException, CoreException
-    {
-        for( IModuleResourceDelta delta : deltas )
-        {
-            int deltaKind = delta.getKind();
-
-            IResource deltaResource = (IResource) delta.getModuleResource().getAdapter( IResource.class );
-
-            IProject deltaProject = deltaResource.getProject();
-
-            // IDE-110 IDE-648
-            IVirtualFolder webappRoot = CoreUtil.getDocroot( deltaProject );
-
-            IPath deltaPath = null;
-
-            if( webappRoot != null )
-            {
-                for( IContainer container : webappRoot.getUnderlyingFolders() )
-                {
-                    if( container != null && container.exists() )
-                    {
-                        final IPath deltaFullPath = deltaResource.getFullPath();
-                        final IPath containerFullPath = container.getFullPath();
-                        deltaPath = new Path( deltaPrefix + deltaFullPath.makeRelativeTo( containerFullPath ) );
-
-                        if( deltaPath != null && deltaPath.segmentCount() > 0 )
-                        {
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if( deltaKind == IModuleResourceDelta.ADDED || deltaKind == IModuleResourceDelta.CHANGED )
-            {
-                addToZip( deltaPath, deltaResource, zip, adjustGMTOffset );
-            }
-            else if( deltaKind == IModuleResourceDelta.REMOVED )
-            {
-                addRemoveProps( deltaPath, deltaResource, zip, deleteEntries, deletePrefix );
-            }
-            else if( deltaKind == IModuleResourceDelta.NO_CHANGE )
-            {
-                IModuleResourceDelta[] children = delta.getAffectedChildren();
-                processResourceDeltasZip( children, zip, deleteEntries, deletePrefix, deltaPrefix, adjustGMTOffset );
-            }
-        }
-    }
-
-    private static String removeArchive( String archive )
-    {
-        int index = Math.max( archive.lastIndexOf( ".war" ), archive.lastIndexOf( ".jar" ) ); //$NON-NLS-1$ //$NON-NLS-2$
-
-        if( index >= 0 )
-        {
-            return archive.substring( 0, index + 5 );
-        }
-
-        return StringPool.EMPTY;
-    }
 
     public static void terminateLaunchesForConfig( ILaunchConfigurationWorkingCopy config ) throws DebugException
     {
@@ -841,5 +785,23 @@ public class ServerUtil
                 launch.terminate();
             }
         }
+    }
+
+    public static ILiferayServer getLiferayServer( IServer server, IProgressMonitor monitor )
+    {
+        ILiferayServer retval = null;
+
+        if( server != null )
+        {
+            try
+            {
+                retval = (ILiferayServer) server.loadAdapter( ILiferayServer.class, monitor );
+            }
+            catch( Exception e )
+            {
+            }
+        }
+
+        return retval;
     }
 }

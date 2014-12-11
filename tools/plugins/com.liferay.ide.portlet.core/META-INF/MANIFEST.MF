@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: %bundle.name
 Bundle-SymbolicName: com.liferay.ide.portlet.core;singleton:=true
-Bundle-Version: 2.0.0.qualifier
+Bundle-Version: 3.0.0.qualifier
 Bundle-Activator: com.liferay.ide.portlet.core.PortletCore
 Bundle-Vendor: %bundle.vendor
 Require-Bundle: com.liferay.ide.core,
@@ -29,8 +29,13 @@ Require-Bundle: com.liferay.ide.core,
  org.eclipse.sapphire.osgi;bundle-version="0.3.1",
  org.eclipse.sapphire.platform;bundle-version="0.3.1",
  org.eclipse.sapphire.workspace;bundle-version="0.3.1",
- org.eclipse.sapphire.java.jdt;bundle-version="0.3.1"
-Bundle-RequiredExecutionEnvironment: J2SE-1.5
+ org.eclipse.sapphire.java.jdt;bundle-version="0.3.1",
+ org.eclipse.emf.ecore,
+ org.eclipse.jdt.ui,
+ org.eclipse.core.resources,
+ org.apache.commons.lang;bundle-version="2.6.0",
+ org.eclipse.jst.jsf.core
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Bundle-ActivationPolicy: lazy
 Export-Package: com.liferay.ide.portlet.core,
  com.liferay.ide.portlet.core.dd,
@@ -38,6 +43,9 @@ Export-Package: com.liferay.ide.portlet.core,
  com.liferay.ide.portlet.core.display.model,
  com.liferay.ide.portlet.core.display.model.internal,
  com.liferay.ide.portlet.core.job,
+ com.liferay.ide.portlet.core.jsf,
+ com.liferay.ide.portlet.core.lfportlet.model,
+ com.liferay.ide.portlet.core.lfportlet.model.internal,
  com.liferay.ide.portlet.core.model,
  com.liferay.ide.portlet.core.model.internal,
  com.liferay.ide.portlet.core.operation,

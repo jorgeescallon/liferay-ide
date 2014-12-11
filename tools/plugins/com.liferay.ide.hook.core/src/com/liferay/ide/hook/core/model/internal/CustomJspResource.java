@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -12,17 +12,15 @@
  * details.
  *
  * Contributors:
- * 		Gregory Amerson - initial implementation and ongoing maintenance
+ *      Gregory Amerson - initial implementation and ongoing maintenance
  *******************************************************************************/
 
-package com.liferay.ide.hook.core.model.internal;
+package com.liferay.ide.hook.core.model.internal;import com.liferay.ide.hook.core.model.CustomJsp;
 
-import com.liferay.ide.hook.core.model.CustomJsp;
-
-import org.eclipse.sapphire.modeling.BindingImpl;
-import org.eclipse.sapphire.modeling.ModelProperty;
-import org.eclipse.sapphire.modeling.Resource;
-import org.eclipse.sapphire.modeling.ValueBindingImpl;
+import org.eclipse.sapphire.Property;
+import org.eclipse.sapphire.PropertyBinding;
+import org.eclipse.sapphire.Resource;
+import org.eclipse.sapphire.ValuePropertyBinding;
 
 /**
  * @author Gregory Amerson
@@ -44,13 +42,12 @@ public class CustomJspResource extends Resource
     }
 
     @Override
-    protected BindingImpl createBinding( final ModelProperty property )
+    protected PropertyBinding createBinding( final Property property )
     {
-        if( property == CustomJsp.PROP_VALUE )
+        if( property.definition() == CustomJsp.PROP_VALUE )
         {
-            ValueBindingImpl binding = new ValueBindingImpl()
+            ValuePropertyBinding binding = new ValuePropertyBinding()
             {
-
                 @Override
                 public String read()
                 {
@@ -64,7 +61,7 @@ public class CustomJspResource extends Resource
                 }
             };
 
-            binding.init( element(), CustomJsp.PROP_VALUE, null );
+            binding.init( property );
 
             return binding;
         }

@@ -9,7 +9,7 @@
             Liferay Layout Template
          </label>
          <description>
-            Layout template plugin for Liferay portal.  Facet version cooresponds to Liferay version.
+            Layout template plugin for Liferay portal.  Facet version corresponds to Liferay version.
          </description>
          <member
                category="liferay.plugins">
@@ -99,17 +99,6 @@
    </extension>
 
    <extension
-         point="com.liferay.ide.project.core.sdkTemplates">
-      <sdkTemplate
-            class="com.liferay.ide.layouttpl.core.LayoutTplSDKTemplate"
-            displayName="Liferay Layout Template"
-            facetId="liferay.layouttpl"
-            facetedProjectTemplateId="liferay.layouttpl.template"
-            menuIndex="40"
-            shortName="layouttpl">
-      </sdkTemplate>
-   </extension>
-   <extension
          point="org.eclipse.core.contenttype.contentTypes">
       <file-association
             content-type="org.eclipse.wst.html.core.htmlsource"
@@ -126,57 +115,36 @@
             priority="high">
       </content-type>
    </extension>
-   <extension
-         id="liferaylayouttpldescriptorvalidator"
-         name="%layout.templates.descriptor.validator.name"
-         point="org.eclipse.wst.validation.validatorV2">
-      <validator
-            build="true"
-            class="com.liferay.ide.layouttpl.core.descriptor.LayoutTplDescriptorValidator"
-            manual="true"
-            markerId="com.liferay.ide.layouttpl.core.liferayLayoutTplDescriptorMarker"
-            version="1">
-         <include>
-            <rules>
-               <contentType
-                     id="com.liferay.ide.layouttpl.core.liferaylayouttplxml">
-               </contentType>
-            </rules>
-         </include>
-         <group
-               id="org.eclipse.wst.sse.core.structuredModelGroup">
-         </group>
-      </validator>
-   </extension>
-   <extension
-         id="liferayLayoutTplDescriptorMarker"
-         name="%layout.templates.descriptor.problem.name"
-         point="org.eclipse.core.resources.markers">
-      <persistent
-            value="true">
-      </persistent>
-      <super
-            type="org.eclipse.wst.validation.problemmarker">
-      </super>
-   </extension>
- <extension
-       point="com.liferay.ide.templates.core.templateDefinition">
-    <template
-          id="layouttpl.tpl"
-          name="Default Layout Template"
-          resource="layouttpl.ftl">
-    </template>
-    <templatesFolder
-          path="templates/">
-    </templatesFolder>
-    <templateVariable
-          name="root"
-          required="true">
-    </templateVariable>
-    <templateVariable
-          name="templateName"
-          required="true">
-    </templateVariable>
- </extension>
+
+    <extension
+        point="com.liferay.ide.core.templateDefinitions">
+        <template
+              id="com.liferay.ide.layouttpl.core.layoutTemplate.legacy"
+              name="Legacy Layout Template"
+              resource="layouttpl_legacy.ftl">
+        </template>
+        <templatesFolder
+              path="templates/">
+        </templatesFolder>
+        <templateVariable
+              name="root"
+              required="true">
+        </templateVariable>
+    </extension>
+    <extension
+        point="com.liferay.ide.core.templateDefinitions">
+        <template
+              id="com.liferay.ide.layouttpl.core.layoutTemplate.bootstrap"
+              name="Bootstrap Layout Template"
+              resource="layouttpl_bootstrap.ftl">
+        </template>
+        <templatesFolder
+              path="templates/">
+        </templatesFolder>
+        <templateVariable
+              name="root"
+              required="true">
+        </templateVariable>
+    </extension>
 
 </plugin>

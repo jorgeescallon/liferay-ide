@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -14,6 +14,7 @@
  *******************************************************************************/
 package com.liferay.ide.maven.core;
 
+import com.liferay.ide.core.util.LaunchHelper;
 import com.liferay.ide.project.core.AbstractProjectBuilder;
 
 import org.apache.maven.model.Plugin;
@@ -23,10 +24,16 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.SubProgressMonitor;
+import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.ILaunchConfigurationType;
+import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
+import org.eclipse.debug.core.ILaunchManager;
+import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.m2e.core.MavenPlugin;
 import org.eclipse.m2e.core.embedder.ICallable;
 import org.eclipse.m2e.core.embedder.IMaven;
@@ -34,6 +41,7 @@ import org.eclipse.m2e.core.embedder.IMavenExecutionContext;
 import org.eclipse.m2e.core.internal.IMavenConstants;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
 import org.eclipse.m2e.core.project.IMavenProjectRegistry;
+import org.eclipse.m2e.core.project.ResolverConfiguration;
 import org.eclipse.osgi.util.NLS;
 
 
@@ -43,6 +51,13 @@ import org.eclipse.osgi.util.NLS;
 @SuppressWarnings( "restriction" )
 public class MavenProjectBuilder extends AbstractProjectBuilder
 {
+    private final String ATTR_GOALS = "M2_GOALS";
+    private final String ATTR_POM_DIR = IJavaLaunchConfigurationConstants.ATTR_WORKING_DIRECTORY;
+    private final String ATTR_PROFILES = "M2_PROFILES";
+    private final String ATTR_SKIP_TESTS = "M2_SKIP_TESTS";
+    private final String ATTR_UPDATE_SNAPSHOTS = "M2_UPDATE_SNAPSHOTS";
+    private final String ATTR_WORKSPACE_RESOLUTION = "M2_WORKSPACE_RESOLUTION";
+    private final String LAUNCH_CONFIGURATION_TYPE_ID = "org.eclipse.m2e.Maven2LaunchConfigurationType";
 
     protected final IMaven maven = MavenPlugin.getMaven();
 
@@ -131,6 +146,25 @@ public class MavenProjectBuilder extends AbstractProjectBuilder
         return buildSB( serviceXmlFile, ILiferayMavenConstants.PLUGIN_GOAL_BUILD_WSDD, sub );
     }
 
+    public IStatus execGoal( final String goal, final IProgressMonitor monitor ) throws CoreException
+    {
+        IStatus retval = null;
+
+        final IMavenProjectFacade facade = MavenUtil.getProjectFacade( getProject(), monitor );
+
+        final ICallable<IStatus> callable = new ICallable<IStatus>()
+        {
+            public IStatus call( IMavenExecutionContext context, IProgressMonitor monitor ) throws CoreException
+            {
+                return MavenUtil.executeGoal( facade, context, goal, monitor );
+            }
+        };
+
+        retval = executeMaven( facade, callable, monitor );
+
+        return retval;
+    }
+
     protected IStatus executeMaven( final IMavenProjectFacade projectFacade,
                                     final ICallable<IStatus> callable,
                                     IProgressMonitor monitor ) throws CoreException
@@ -154,7 +188,7 @@ public class MavenProjectBuilder extends AbstractProjectBuilder
         try
         {
             // not doing any null checks since this is in large try/catch
-            final Plugin liferayMavenPlugin = MavenUtil.getLiferayMavenPlugin( projectFacade.getMavenProject() );
+            final Plugin liferayMavenPlugin = MavenUtil.getPlugin( projectFacade, ILiferayMavenConstants.LIFERAY_MAVEN_PLUGIN_KEY, monitor );
             final Xpp3Dom config = (Xpp3Dom) liferayMavenPlugin.getConfiguration();
             final Xpp3Dom apiBaseDir = config.getChild( ILiferayMavenConstants.PLUGIN_CONFIG_API_BASE_DIR );
             // this should be the name path of a project that should be in user's workspace that we can refresh
@@ -170,6 +204,52 @@ public class MavenProjectBuilder extends AbstractProjectBuilder
         catch( Exception e )
         {
             LiferayMavenCore.logError( "Could not refresh sibling service project.", e ); //$NON-NLS-1$
+        }
+    }
+
+    public boolean runMavenGoal( final IProject project, final String goal, final IProgressMonitor monitor )
+        throws CoreException
+    {
+        final IMavenProjectFacade facade = MavenUtil.getProjectFacade( project, monitor );
+
+        return execMavenLaunch( project, goal, facade, monitor );
+    }
+
+    private boolean execMavenLaunch(
+        final IProject project, final String goal, final IMavenProjectFacade facade, IProgressMonitor monitor )
+        throws CoreException
+    {
+        final ILaunchManager launchManager = DebugPlugin.getDefault().getLaunchManager();
+        final ILaunchConfigurationType launchConfigurationType =
+            launchManager.getLaunchConfigurationType( LAUNCH_CONFIGURATION_TYPE_ID );
+        final IPath basedirLocation = project.getLocation();
+        final String newName = launchManager.generateLaunchConfigurationName( basedirLocation.lastSegment() );
+
+        final ILaunchConfigurationWorkingCopy workingCopy = launchConfigurationType.newInstance( null, newName );
+        workingCopy.setAttribute( ATTR_POM_DIR, basedirLocation.toString() );
+        workingCopy.setAttribute( ATTR_GOALS, goal );
+//        workingCopy.setAttribute( ATTR_UPDATE_SNAPSHOTS, true );
+        workingCopy.setAttribute( ATTR_WORKSPACE_RESOLUTION, true );
+        workingCopy.setAttribute( ATTR_SKIP_TESTS, true );
+
+        if( facade != null )
+        {
+            final ResolverConfiguration configuration = facade.getResolverConfiguration();
+
+            final String selectedProfiles = configuration.getSelectedProfiles();
+
+            if( selectedProfiles != null && selectedProfiles.length() > 0 )
+            {
+                workingCopy.setAttribute( ATTR_PROFILES, selectedProfiles );
+            }
+
+            new LaunchHelper().launch( workingCopy, "run", monitor );
+
+            return true;
+        }
+        else
+        {
+            return false;
         }
     }
 

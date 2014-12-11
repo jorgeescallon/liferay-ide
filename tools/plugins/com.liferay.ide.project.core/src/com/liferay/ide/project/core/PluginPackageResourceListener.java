@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,10 +16,13 @@
 package com.liferay.ide.project.core;
 
 import com.liferay.ide.core.ILiferayConstants;
+import com.liferay.ide.core.ILiferayProject;
+import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.project.core.util.ProjectUtil;
 import com.liferay.ide.sdk.core.ISDKConstants;
+import com.liferay.ide.server.util.ComponentUtil;
 import com.liferay.ide.server.util.ServerUtil;
 
 import java.io.FileInputStream;
@@ -67,8 +70,6 @@ import org.eclipse.wst.common.componentcore.internal.operation.AddReferenceDataM
 import org.eclipse.wst.common.componentcore.internal.operation.RemoveReferenceDataModelProvider;
 import org.eclipse.wst.common.componentcore.internal.resources.VirtualArchiveComponent;
 import org.eclipse.wst.common.componentcore.resources.IVirtualComponent;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFile;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
 import org.eclipse.wst.common.componentcore.resources.IVirtualReference;
 import org.eclipse.wst.common.frameworks.datamodel.DataModelFactory;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
@@ -159,24 +160,23 @@ public class PluginPackageResourceListener implements IResourceChangeListener, I
         if( fullPath.lastSegment() != null &&
             fullPath.lastSegment().equals( ILiferayConstants.LIFERAY_PLUGIN_PACKAGE_PROPERTIES_FILE ) )
         {
-            final IVirtualFolder webappRoot = CoreUtil.getDocroot( delta.getResource().getProject() );
+            final IProject project = CoreUtil.getLiferayProject( delta.getResource() );
+            final ILiferayProject lrproject = LiferayCore.create( project );
 
-            if( webappRoot == null )
+            if( lrproject != null )
             {
-                return false;
-            }
+                final IResource propertiesFile =
+                    lrproject.findDocrootResource( new Path( "WEB-INF/" +
+                        ILiferayConstants.LIFERAY_PLUGIN_PACKAGE_PROPERTIES_FILE ) );
 
-            // IDE-110 648
-            final IVirtualFile propertiesFile =
-                webappRoot.getFile( new Path( "WEB-INF/" + ILiferayConstants.LIFERAY_PLUGIN_PACKAGE_PROPERTIES_FILE ) ); //$NON-NLS-1$
-
-            if( propertiesFile != null && propertiesFile.exists() )
-            {
-                final IPath filePath = propertiesFile.getUnderlyingFile().getFullPath();
-
-                if( filePath.equals( fullPath ) )
+                if( propertiesFile != null && propertiesFile.exists() )
                 {
-                    return true;
+                    final IPath filePath = propertiesFile.getFullPath();
+
+                    if( filePath.equals( fullPath ) )
+                    {
+                        return true;
+                    }
                 }
             }
         }
@@ -218,7 +218,7 @@ public class PluginPackageResourceListener implements IResourceChangeListener, I
     protected IVirtualReference processContext( IVirtualComponent rootComponent, String context )
     {
         // first check for jar file
-        IFile serviceJar = ProjectUtil.findServiceJarForContext( context );
+        IFile serviceJar = ComponentUtil.findServiceJarForContext( context );
 
         if( serviceJar == null )
         {
@@ -265,17 +265,20 @@ public class PluginPackageResourceListener implements IResourceChangeListener, I
 
                 final List<IPath> tldFilesToCopy = new ArrayList<IPath>();
 
-                for( String portalTld : portalTlds )
+                if( portalDir != null )
                 {
-                    IFile tldFile = tldFolder.getFile( portalTld );
-
-                    if( !tldFile.exists() )
+                    for( String portalTld : portalTlds )
                     {
-                        IPath realPortalTld = portalDir.append( "WEB-INF/tld/" + portalTld ); //$NON-NLS-1$
+                        IFile tldFile = tldFolder.getFile( portalTld );
 
-                        if( realPortalTld.toFile().exists() )
+                        if( !tldFile.exists() )
                         {
-                            tldFilesToCopy.add( realPortalTld );
+                            IPath realPortalTld = portalDir.append( "WEB-INF/tld/" + portalTld ); //$NON-NLS-1$
+
+                            if( realPortalTld.toFile().exists() )
+                            {
+                                tldFilesToCopy.add( realPortalTld );
+                            }
                         }
                     }
                 }
@@ -299,7 +302,7 @@ public class PluginPackageResourceListener implements IResourceChangeListener, I
                                 }
                                 catch( FileNotFoundException e )
                                 {
-                                    throw new CoreException( LiferayProjectCore.createErrorStatus( e ) );
+                                    throw new CoreException( ProjectCore.createErrorStatus( e ) );
                                 }
                             }
 
@@ -454,7 +457,7 @@ public class PluginPackageResourceListener implements IResourceChangeListener, I
         }
         catch( Exception e )
         {
-            LiferayProjectCore.logError( e );
+            ProjectCore.logError( e );
         }
         finally
         {
@@ -493,7 +496,7 @@ public class PluginPackageResourceListener implements IResourceChangeListener, I
         }
         catch( ExecutionException e )
         {
-            LiferayProjectCore.logError( e );
+            ProjectCore.logError( e );
         }
     }
 

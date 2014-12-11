@@ -2,23 +2,23 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: %bundle.name
 Bundle-SymbolicName: com.liferay.ide.service.ui;singleton:=true
-Bundle-Version: 2.0.0.qualifier
+Bundle-Version: 3.0.0.qualifier
 Bundle-Activator: com.liferay.ide.service.ui.ServiceUI
 Bundle-Vendor: %bundle.vendor
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
  com.liferay.ide.service.core,
- org.eclipse.sapphire.ui.swt.xml.editor;bundle-version="0.3.0",
- org.eclipse.sapphire.ui;bundle-version="0.3.0",
+ org.eclipse.sapphire.ui.swt.xml.editor,
+ org.eclipse.sapphire.ui,
  org.eclipse.ui.views,
  org.eclipse.help,
  org.eclipse.ui.forms,
  org.eclipse.ui.views.properties.tabbed,
  org.eclipse.ui.editors,
- org.eclipse.sapphire.osgi;bundle-version="0.3.0",
- org.eclipse.sapphire.workspace.ui;bundle-version="0.3.0",
- org.eclipse.sapphire.platform;bundle-version="0.3.0",
- org.eclipse.sapphire.ui.swt.gef;bundle-version="0.5.0",
+ org.eclipse.sapphire.osgi,
+ org.eclipse.sapphire.workspace.ui,
+ org.eclipse.sapphire.platform,
+ org.eclipse.sapphire.ui.swt.gef,
  org.eclipse.gef,
  org.eclipse.ui.ide,
  org.eclipse.jface.text,
@@ -31,8 +31,9 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.jst.j2ee.ui,
  org.eclipse.jst.servlet.ui,
  com.liferay.ide.project.ui,
- org.eclipse.debug.ui
-Bundle-RequiredExecutionEnvironment: J2SE-1.5
+ org.eclipse.debug.ui,
+ org.eclipse.ui.workbench.texteditor
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Bundle-ActivationPolicy: lazy
 Export-Package: com.liferay.ide.service.ui,
  com.liferay.ide.service.ui.actions,

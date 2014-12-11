@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -14,13 +14,15 @@
  *******************************************************************************/
 package com.liferay.ide.maven.core;
 
+import com.liferay.ide.core.util.CoreUtil;
+
 import java.util.Set;
 
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResourceDelta;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
 import org.eclipse.osgi.util.NLS;
@@ -28,6 +30,7 @@ import org.eclipse.osgi.util.NLS;
 
 /**
  * @author Gregory Amerson
+ * @author Simon Jiang
  */
 public class BuildThumbnailBuildParticipant extends ThemePluginBuildParticipant
 {
@@ -65,10 +68,17 @@ public class BuildThumbnailBuildParticipant extends ThemePluginBuildParticipant
 
         final IResourceDelta delta = this.getDelta( facade.getProject() );
 
-        //TODO IDE-935 don't hard code path of src/main/webapp/
-        if( delta != null && delta.findMember( new Path( "src/main/webapp/images/screenshot.png" ) ) != null ) //$NON-NLS-1$
+        final String warSourceDirectory = MavenUtil.getWarSourceDirectory( facade );
+
+        if( ! CoreUtil.isNullOrEmpty( warSourceDirectory ) )
         {
-            retval = true;
+            final IPath screenshotPath =
+                facade.getProject().getFolder( warSourceDirectory + "/images/screenshot.png" ).getProjectRelativePath();
+
+            if( delta != null && delta.findMember( screenshotPath ) != null )
+            {
+                retval = true;
+            }
         }
 
         return retval;

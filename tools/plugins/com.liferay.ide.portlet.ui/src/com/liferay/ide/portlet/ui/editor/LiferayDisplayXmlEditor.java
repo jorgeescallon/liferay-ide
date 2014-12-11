@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -20,8 +20,8 @@ package com.liferay.ide.portlet.ui.editor;
 
 import com.liferay.ide.portlet.core.display.model.Display6xx;
 
-import org.eclipse.sapphire.ui.def.DefinitionLoader;
 import org.eclipse.sapphire.ui.swt.xml.editor.SapphireEditorForXml;
+import org.eclipse.ui.PartInitException;
 
 /**
  * @author Kamesh Sampath
@@ -30,17 +30,15 @@ import org.eclipse.sapphire.ui.swt.xml.editor.SapphireEditorForXml;
 public class LiferayDisplayXmlEditor extends SapphireEditorForXml
 {
 
-    public static final String ID = "com.liferay.ide.eclipse.portlet.ui.editor.LiferayDisplayXmlEditor"; //$NON-NLS-1$
-
     public LiferayDisplayXmlEditor()
     {
-        super
-        (
-            Display6xx.TYPE,
-            DefinitionLoader
-                .sdef( LiferayDisplayXmlEditor.class )
-                .page( "DetailsPage" )
-        );
+        super( Display6xx.TYPE, null );
+    }
+
+    @Override
+    protected void createFormPages() throws PartInitException
+    {
+        addDeferredPage( 1, "Overview", "DetailsPage" );
     }
 
 }

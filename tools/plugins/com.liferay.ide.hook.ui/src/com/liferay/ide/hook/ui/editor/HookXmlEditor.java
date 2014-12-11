@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,6 +17,7 @@ package com.liferay.ide.hook.ui.editor;
 
 import static com.liferay.ide.core.util.CoreUtil.empty;
 
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
@@ -24,7 +25,9 @@ import com.liferay.ide.hook.core.model.CustomJsp;
 import com.liferay.ide.hook.core.model.CustomJspDir;
 import com.liferay.ide.hook.core.model.Hook;
 import com.liferay.ide.hook.core.model.Hook6xx;
+import com.liferay.ide.hook.core.util.HookUtil;
 import com.liferay.ide.hook.ui.HookUI;
+import com.liferay.ide.ui.util.UIUtil;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -33,52 +36,51 @@ import java.net.MalformedURLException;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IncrementalProjectBuilder;
+import org.eclipse.core.resources.WorkspaceJob;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.osgi.util.NLS;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.ElementHandle;
+import org.eclipse.sapphire.ElementList;
 import org.eclipse.sapphire.FilteredListener;
 import org.eclipse.sapphire.Listener;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelElementList;
+import org.eclipse.sapphire.PropertyContentEvent;
+import org.eclipse.sapphire.Value;
 import org.eclipse.sapphire.modeling.Path;
-import org.eclipse.sapphire.modeling.PropertyContentEvent;
-import org.eclipse.sapphire.ui.def.DefinitionLoader;
 import org.eclipse.sapphire.ui.swt.xml.editor.SapphireEditorForXml;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IStorageEditorInput;
+import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.ide.FileStoreEditorInput;
 import org.eclipse.ui.part.FileEditorInput;
 
 /**
  * @author Kamesh Sampath
  * @author Gregory Amerson
+ * @author Simon Jiang
  */
 public class HookXmlEditor extends SapphireEditorForXml
 {
-
-    public static final String ID = "com.liferay.ide.eclipse.hook.ui.editor.HookXmlEditor";//$NON-NLS-1$
-
     protected boolean customModelDirty = false;
 
     private boolean ignoreCustomModelChanges;
 
-    /**
-	 *
-	 */
     public HookXmlEditor()
     {
-        super
-        (
-            Hook6xx.TYPE,
-            DefinitionLoader
-                .sdef( HookXmlEditor.class )
-                .page( "HookConfigurationPage" )
-        );
+        super( Hook6xx.TYPE, null );
     }
 
     @Override
-    protected void adaptModel( final IModelElement model )
+    protected void adaptModel( final Element model )
     {
         super.adaptModel( model );
 
@@ -92,28 +94,80 @@ public class HookXmlEditor extends SapphireEditorForXml
         };
 
         this.ignoreCustomModelChanges = true;
-        model.attach( listener, "CustomJsps/*" ); //$NON-NLS-1$
+        model.attach( listener, Hook.PROP_CUSTOM_JSPS.name() + "/*" ); //$NON-NLS-1$
         this.ignoreCustomModelChanges = false;
     }
 
-    private void copyCustomJspsToProject( ModelElementList<CustomJsp> customJsps )
+    @Override
+    protected void createFormPages() throws PartInitException
+    {
+        addDeferredPage( 1, "Overview", "HookConfigurationPage" );
+    }
+
+    private void configureCustomJspValidation( final IProject project, final String customerJspPath )
+    {
+        final IFolder docFolder = CoreUtil.getDefaultDocrootFolder( project );
+
+        if( docFolder != null )
+        {
+            final IPath newPath = org.eclipse.core.runtime.Path.fromOSString( customerJspPath );
+
+            final IPath pathValue = docFolder.getFullPath().append( newPath );
+
+            final IFolder customJspFolder = project.getFolder( pathValue.makeRelativeTo( project.getFullPath() ) );
+
+            boolean needAddCustomJspValidation =
+                HookUtil.configureJSPSyntaxValidationExclude( project, customJspFolder, false );
+
+            if( !needAddCustomJspValidation )
+            {
+                UIUtil.async( new Runnable()
+                {
+
+                    public void run()
+                    {
+                        final boolean addDisableCustomJspValidation =
+                            MessageDialog.openQuestion(
+                                UIUtil.getActiveShell(), Msgs.disableCustomValidationTitle,
+                                Msgs.disableCustomValidationMsg );
+
+                        if( addDisableCustomJspValidation )
+                        {
+                            new WorkspaceJob( " disable custom jsp validation for " + project.getName() )
+                            {
+
+                                @Override
+                                public IStatus runInWorkspace( IProgressMonitor monitor ) throws CoreException
+                                {
+                                    HookUtil.configureJSPSyntaxValidationExclude(
+                                        project, customJspFolder, true );
+                                    project.build( IncrementalProjectBuilder.FULL_BUILD, new NullProgressMonitor() );
+
+                                    return Status.OK_STATUS;
+                                }
+                            }.schedule();
+                        }
+                    }
+                } );
+            }
+        }
+    }
+
+    private void copyCustomJspsToProject( IPath portalDir, ElementList<CustomJsp> customJsps )
     {
         try
         {
-            CustomJspDir customJspDirElement = this.getModelElement().nearest( Hook.class ).getCustomJspDir().element();
+            CustomJspDir customJspDirElement = this.getModelElement().nearest( Hook.class ).getCustomJspDir().content();
 
             if( customJspDirElement != null && customJspDirElement.validation().ok() )
             {
-                Path customJspDir = customJspDirElement.getValue().getContent();
-                IFolder defaultDocroot = CoreUtil.getDefaultDocrootFolder( getProject() );
+                Path customJspDir = customJspDirElement.getValue().content();
+                IFolder defaultDocroot = LiferayCore.create( getProject() ).getDefaultDocrootFolder();
                 IFolder customJspFolder = defaultDocroot.getFolder( customJspDir.toPortableString() );
-
-                final ILiferayProject liferayProject = LiferayCore.create( getProject() );
-                final IPath portalDir = liferayProject.getAppServerPortalDir();
 
                 for( CustomJsp customJsp : customJsps )
                 {
-                    String content = customJsp.getValue().getContent();
+                    String content = customJsp.getValue().content();
 
                     if( !empty( content ) )
                     {
@@ -126,7 +180,15 @@ public class HookXmlEditor extends SapphireEditorForXml
                             try
                             {
                                 CoreUtil.makeFolders( (IFolder) customJspFile.getParent() );
-                                customJspFile.create( new FileInputStream( portalJsp.toFile() ), true, null );
+
+                                if( portalJsp.toFile().exists() )
+                                {
+                                    customJspFile.create( new FileInputStream( portalJsp.toFile() ), true, null );
+                                }
+                                else
+                                {
+                                    CoreUtil.createEmptyFile( customJspFile );
+                                }
                             }
                             catch( Exception e )
                             {
@@ -148,15 +210,36 @@ public class HookXmlEditor extends SapphireEditorForXml
     {
         if( this.customModelDirty )
         {
-            ModelElementList<CustomJsp> customJsps = getModelElement().nearest( Hook.class ).getCustomJsps();
+            final Hook hook = getModelElement().nearest( Hook.class );
+            final ElementList<CustomJsp> customJsps = hook.getCustomJsps();
 
-            copyCustomJspsToProject( customJsps );
+            final ILiferayProject liferayProject = LiferayCore.create( getProject() );
+            final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+            if( portal != null )
+            {
+                final IPath portalDir = portal.getAppServerPortalDir();
+
+                if( portalDir != null )
+                {
+                    copyCustomJspsToProject( portalDir, customJsps );
+                }
+            }
 
             this.customModelDirty = false;
 
             super.doSave( monitor );
 
             this.firePropertyChange( IEditorPart.PROP_DIRTY );
+
+            ElementHandle<CustomJspDir> customJspDir = hook.getCustomJspDir();
+
+            if( customJspDir != null && !customJspDir.empty() )
+            {
+                Value<Path> customJspPath = customJspDir.content().getValue();
+                final String customeJspValue = customJspPath.content().makeRelative().toPortableString();
+                configureCustomJspValidation( getProject(), customeJspValue );
+            }
         }
         else
         {
@@ -214,6 +297,17 @@ public class HookXmlEditor extends SapphireEditorForXml
         this.ignoreCustomModelChanges = true;
         super.pageChange( pageIndex );
         this.ignoreCustomModelChanges = false;
+    }
+
+    private static class Msgs extends NLS
+    {
+        public static String disableCustomValidationMsg;
+        public static String disableCustomValidationTitle;
+
+        static
+        {
+            initializeMessages( HookXmlEditor.class.getName(), Msgs.class );
+        }
     }
 
 }

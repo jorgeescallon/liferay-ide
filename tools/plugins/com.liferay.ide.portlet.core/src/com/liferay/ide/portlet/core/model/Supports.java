@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -20,13 +20,13 @@ package com.liferay.ide.portlet.core.model;
 import com.liferay.ide.portlet.core.model.internal.PortletModePossibleValueService;
 import com.liferay.ide.portlet.core.model.internal.WindowStatesPossibleValueService;
 
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ListProperty;
-import org.eclipse.sapphire.modeling.ModelElementList;
-import org.eclipse.sapphire.modeling.ModelElementType;
-import org.eclipse.sapphire.modeling.Value;
-import org.eclipse.sapphire.modeling.ValueProperty;
-import org.eclipse.sapphire.modeling.annotations.GenerateImpl;
+import org.eclipse.sapphire.Collation;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.ElementList;
+import org.eclipse.sapphire.ElementType;
+import org.eclipse.sapphire.ListProperty;
+import org.eclipse.sapphire.Value;
+import org.eclipse.sapphire.ValueProperty;
 import org.eclipse.sapphire.modeling.annotations.Image;
 import org.eclipse.sapphire.modeling.annotations.InitialValue;
 import org.eclipse.sapphire.modeling.annotations.Label;
@@ -37,15 +37,14 @@ import org.eclipse.sapphire.modeling.xml.annotations.XmlBinding;
 import org.eclipse.sapphire.modeling.xml.annotations.XmlListBinding;
 
 /**
- * @author <a href="mailto:kamesh.sampath@accenture.com">Kamesh Sampath</a>
+ * @author Kamesh Sampath
  */
 @Label( standard = "Supports configuration" )
-@GenerateImpl
 @Image( path = "images/obj16/supports_obj.gif" )
-public interface Supports extends IModelElement
+public interface Supports extends Element
 {
 
-    ModelElementType TYPE = new ModelElementType( Supports.class );
+    ElementType TYPE = new ElementType( Supports.class );
 
     // *** MimeType ***
 
@@ -64,10 +63,11 @@ public interface Supports extends IModelElement
     @Type( base = PortletMode.class )
     @Label( standard = "Portlet Modes" )
     @Service( impl = PortletModePossibleValueService.class )
+    @Collation( ignoreCaseDifferences = "true" )
     @XmlListBinding( mappings = @XmlListBinding.Mapping( element = "portlet-mode", type = PortletMode.class ) )
     ListProperty PROP_PORTLET_MODES = new ListProperty( TYPE, "PortletModes" ); //$NON-NLS-1$
 
-    ModelElementList<PortletMode> getPortletModes();
+    ElementList<PortletMode> getPortletModes();
 
     // *** Window States ***
 
@@ -75,7 +75,8 @@ public interface Supports extends IModelElement
     @Label( standard = "Window States" )
     @XmlListBinding( mappings = @XmlListBinding.Mapping( element = "window-state", type = WindowState.class ) )
     @Service( impl = WindowStatesPossibleValueService.class )
+    @Collation( ignoreCaseDifferences = "true" )
     ListProperty PROP_WINDOW_STATES = new ListProperty( TYPE, "WindowStates" ); //$NON-NLS-1$
 
-    ModelElementList<WindowState> getWindowStates();
+    ElementList<WindowState> getWindowStates();
 }

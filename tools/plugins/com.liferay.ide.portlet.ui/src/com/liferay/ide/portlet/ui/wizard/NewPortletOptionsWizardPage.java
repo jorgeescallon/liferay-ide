@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,11 +15,10 @@
 
 package com.liferay.ide.portlet.ui.wizard;
 
-import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.portlet.core.operation.INewPortletClassDataModelProperties;
 import com.liferay.ide.project.core.util.ProjectUtil;
+import com.liferay.ide.project.ui.wizard.LiferayDataModelWizardPage;
 import com.liferay.ide.ui.util.SWTUtil;
-import com.liferay.ide.ui.wizard.LiferayDataModelWizardPage;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.osgi.util.NLS;
@@ -33,13 +32,13 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
 import org.eclipse.wst.common.frameworks.datamodel.DataModelEvent;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModelListener;
 
 /**
  * @author Greg Amerson
+ * @author Terry Jia
  */
 @SuppressWarnings( "restriction" )
 public class NewPortletOptionsWizardPage extends LiferayDataModelWizardPage
@@ -233,6 +232,7 @@ public class NewPortletOptionsWizardPage extends LiferayDataModelWizardPage
 
         createJSPsField( group );
         createResourceBundleField( group );
+        createViewTemplateGroup( group );
     }
 
     @Override
@@ -251,10 +251,9 @@ public class NewPortletOptionsWizardPage extends LiferayDataModelWizardPage
         return composite;
     }
 
-    @Override
-    protected IVirtualFolder getDocroot()
+    protected void createViewTemplateGroup( Composite composite )
     {
-        return CoreUtil.getDocroot( getDataModel().getStringProperty( PROJECT_NAME ) );
+        // don't create view template section
     }
 
     @Override

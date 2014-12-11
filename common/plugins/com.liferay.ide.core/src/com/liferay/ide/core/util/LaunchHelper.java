@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.IDebugEventSetListener;
@@ -40,7 +41,7 @@ import org.eclipse.jdt.launching.JavaRuntime;
  * @author Greg Amerson
  */
 @SuppressWarnings( { "restriction" } )
-public abstract class LaunchHelper implements IDebugEventSetListener
+public class LaunchHelper implements IDebugEventSetListener
 {
 
     protected String[] launchArgs = new String[0];
@@ -60,6 +61,10 @@ public abstract class LaunchHelper implements IDebugEventSetListener
     protected String mode = ILaunchManager.RUN_MODE;
 
     protected ILaunch runningLaunch;
+
+    public LaunchHelper()
+    {
+    }
 
     public LaunchHelper( String launchConfigTypeId )
     {
@@ -96,9 +101,9 @@ public abstract class LaunchHelper implements IDebugEventSetListener
         launchConfig.setAttribute( IJavaLaunchConfigurationConstants.ATTR_DEFAULT_CLASSPATH, false );
         launchConfig.setAttribute( IJavaLaunchConfigurationConstants.ATTR_CLASSPATH, mementos );
 
-        if( mainClass != null )
+        if( getMainClass() != null )
         {
-            launchConfig.setAttribute( IJavaLaunchConfigurationConstants.ATTR_MAIN_TYPE_NAME, mainClass );
+            launchConfig.setAttribute( IJavaLaunchConfigurationConstants.ATTR_MAIN_TYPE_NAME, getMainClass() );
         }
 
         if( launchArgs != null && launchArgs.length > 0 )
@@ -178,9 +183,8 @@ public abstract class LaunchHelper implements IDebugEventSetListener
         return this.launchSync;
     }
 
-    public void launch( ILaunchConfiguration config, String mode, IProgressMonitor monitor ) throws CoreException
+    public void launch( final ILaunchConfiguration config, final String mode, IProgressMonitor monitor ) throws CoreException
     {
-
         if( config == null )
         {
             throw new IllegalArgumentException( "Launch config cannot be null" ); //$NON-NLS-1$
@@ -191,7 +195,7 @@ public abstract class LaunchHelper implements IDebugEventSetListener
             DebugPlugin.getDefault().addDebugEventListener( this );
         }
 
-        ILaunch launch = config.launch( mode, monitor );
+        final ILaunch launch = config.launch( mode, new NullProgressMonitor() );
 
         if( isLaunchSync() )
         {
@@ -201,7 +205,15 @@ public abstract class LaunchHelper implements IDebugEventSetListener
             {
                 while( isLaunchRunning() )
                 {
-                    Thread.sleep( 100 );
+                    if( monitor != null && monitor.isCanceled() && !launch.isTerminated() )
+                    {
+                        launch.getProcesses()[0].terminate();
+                        launch.terminate();
+                    }
+                    else
+                    {
+                        Thread.sleep( 100 );
+                    }
                 }
             }
             catch( InterruptedException e )
@@ -217,7 +229,7 @@ public abstract class LaunchHelper implements IDebugEventSetListener
 
     public void launch( IProgressMonitor monitor ) throws CoreException
     {
-        ILaunchConfigurationWorkingCopy config = createLaunchConfiguration();
+        final ILaunchConfigurationWorkingCopy config = createLaunchConfiguration();
 
         launch( config, mode, monitor );
     }
@@ -257,7 +269,9 @@ public abstract class LaunchHelper implements IDebugEventSetListener
         this.mode = mode;
     }
 
-    protected abstract void addUserEntries( RuntimeClasspathModel model ) throws CoreException;
+    protected void addUserEntries( RuntimeClasspathModel model ) throws CoreException
+    {
+    }
 
     protected IRuntimeClasspathEntry[] getClasspath( ILaunchConfigurationWorkingCopy config ) throws CoreException
     {

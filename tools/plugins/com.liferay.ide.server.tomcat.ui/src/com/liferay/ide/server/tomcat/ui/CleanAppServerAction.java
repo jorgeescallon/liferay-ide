@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,7 +15,7 @@
 
 package com.liferay.ide.server.tomcat.ui;
 
-import com.liferay.ide.project.ui.ProjectUIPlugin;
+import com.liferay.ide.project.ui.ProjectUI;
 import com.liferay.ide.server.tomcat.core.ILiferayTomcatRuntime;
 import com.liferay.ide.server.tomcat.core.job.CleanAppServerJob;
 import com.liferay.ide.server.tomcat.core.util.LiferayTomcatUtil;
@@ -124,7 +124,7 @@ public class CleanAppServerAction extends AbstractObjectAction
         }
         catch( Exception ex )
         {
-            ProjectUIPlugin.logError( ex );
+            ProjectUI.logError( ex );
         }
     }
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,28 +17,31 @@
 
 package com.liferay.ide.hook.core.model;
 
+import com.liferay.ide.hook.core.model.internal.CustomJspDirListener;
 import com.liferay.ide.hook.core.model.internal.DocrootRelativePathService;
 
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelElementType;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.ElementType;
+import org.eclipse.sapphire.Value;
+import org.eclipse.sapphire.ValueProperty;
 import org.eclipse.sapphire.modeling.Path;
-import org.eclipse.sapphire.modeling.Value;
-import org.eclipse.sapphire.modeling.ValueProperty;
-import org.eclipse.sapphire.modeling.annotations.DefaultValue;
 import org.eclipse.sapphire.modeling.annotations.FileSystemResourceType;
-import org.eclipse.sapphire.modeling.annotations.GenerateImpl;
+import org.eclipse.sapphire.modeling.annotations.InitialValue;
 import org.eclipse.sapphire.modeling.annotations.Label;
+import org.eclipse.sapphire.modeling.annotations.Listeners;
 import org.eclipse.sapphire.modeling.annotations.MustExist;
 import org.eclipse.sapphire.modeling.annotations.Service;
 import org.eclipse.sapphire.modeling.annotations.Type;
 import org.eclipse.sapphire.modeling.annotations.ValidFileSystemResourceType;
 import org.eclipse.sapphire.modeling.xml.annotations.XmlBinding;
 
-@GenerateImpl
-public interface CustomJspDir extends IModelElement
+/**
+ * @author Gregory Amerson
+ */
+public interface CustomJspDir extends Element
 {
 
-    ModelElementType TYPE = new ModelElementType( CustomJspDir.class );
+    ElementType TYPE = new ElementType( CustomJspDir.class );
 
     // *** Value ***
 
@@ -47,8 +50,9 @@ public interface CustomJspDir extends IModelElement
     @XmlBinding( path = "" )
     @Service( impl = DocrootRelativePathService.class )
     @ValidFileSystemResourceType( FileSystemResourceType.FOLDER )
-    @DefaultValue( text = "/META-INF/custom_jsps" )
+    @InitialValue( text = "/META-INF/custom_jsps" )
     @MustExist
+    @Listeners( CustomJspDirListener.class )
     ValueProperty PROP_VALUE = new ValueProperty( TYPE, "Value" ); //$NON-NLS-1$
 
     Value<Path> getValue();
@@ -56,4 +60,5 @@ public interface CustomJspDir extends IModelElement
     void setValue( String value );
 
     void setValue( Path value );
+
 }

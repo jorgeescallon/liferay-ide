@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -21,6 +21,7 @@ import java.util.Set;
 
 import org.apache.maven.lifecycle.MavenExecutionPlan;
 import org.apache.maven.plugin.MojoExecution;
+import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.codehaus.plexus.util.xml.Xpp3DomUtils;
 import org.eclipse.core.resources.IProject;
@@ -132,7 +133,8 @@ public abstract class ThemePluginBuildParticipant extends AbstractBuildParticipa
 
         final List<String> goals = Collections.singletonList( getGoal() );
 
-        final MavenExecutionPlan plan = maven.calculateExecutionPlan( facade.getMavenProject(), goals, true, monitor );
+        final MavenProject mavenProject = facade.getMavenProject( monitor );
+        final MavenExecutionPlan plan = maven.calculateExecutionPlan( mavenProject, goals, true, monitor );
 
         monitor.worked( 10 );
 
@@ -149,7 +151,7 @@ public abstract class ThemePluginBuildParticipant extends AbstractBuildParticipa
 
         try
         {
-            parentHierarchyLoaded = MavenUtil.loadParentHierarchy( this.maven, facade, context, monitor );
+            parentHierarchyLoaded = MavenUtil.loadParentHierarchy( facade, monitor );
 
             monitor.worked( 10 );
 
@@ -158,7 +160,7 @@ public abstract class ThemePluginBuildParticipant extends AbstractBuildParticipa
 
             liferayMojoExecution.setConfiguration( config );
 
-            maven.execute( facade.getMavenProject(), liferayMojoExecution, monitor );
+            maven.execute( mavenProject, liferayMojoExecution, monitor );
 
             monitor.worked( 50 );
 
@@ -192,7 +194,7 @@ public abstract class ThemePluginBuildParticipant extends AbstractBuildParticipa
 
             if( parentHierarchyLoaded )
             {
-                facade.getMavenProject().setParent( null );
+                mavenProject.setParent( null );
             }
         }
 

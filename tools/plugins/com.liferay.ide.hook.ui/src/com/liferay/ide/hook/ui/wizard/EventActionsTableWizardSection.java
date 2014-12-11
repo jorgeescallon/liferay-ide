@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,26 +15,35 @@
 
 package com.liferay.ide.hook.ui.wizard;
 
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.hook.ui.HookUI;
+import com.liferay.ide.project.ui.wizard.StringArrayTableWizardSection;
 import com.liferay.ide.ui.dialog.FilteredTypesSelectionDialogEx;
-import com.liferay.ide.ui.wizard.StringArrayTableWizardSection;
 
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.JavaConventions;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
+import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.core.search.BasicSearchEngine;
 import org.eclipse.jdt.internal.ui.dialogs.FilteredTypesSelectionDialog;
+import org.eclipse.jface.dialogs.IDialogConstants;
+import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.window.Window;
 import org.eclipse.jst.j2ee.internal.common.operations.INewJavaClassDataModelProperties;
 import org.eclipse.jst.j2ee.internal.plugin.J2EEUIMessages;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CLabel;
+import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Image;
@@ -47,10 +56,13 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
+import org.eclipse.ui.ISharedImages;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
 
 /**
  * @author Greg Amerson
+ * @author Simon Jiang
  */
 @SuppressWarnings( "restriction" )
 public class EventActionsTableWizardSection extends StringArrayTableWizardSection
@@ -59,6 +71,7 @@ public class EventActionsTableWizardSection extends StringArrayTableWizardSectio
     protected class AddEventActionDialog extends AddStringArrayDialog
     {
         protected String[] buttonLabels;
+        protected CLabel errorMessageLabel;
 
         public AddEventActionDialog( Shell shell, String windowTitle, String[] labelsForTextField, String[] buttonLabels )
         {
@@ -69,6 +82,28 @@ public class EventActionsTableWizardSection extends StringArrayTableWizardSectio
             this.buttonLabels = buttonLabels;
 
             setWidthHint( 450 );
+        }
+
+        @Override
+        protected Control createContents( Composite parent )
+        {
+            Composite composite = (Composite) super.createContents( parent );
+            getButton( IDialogConstants.OK_ID ).setEnabled( false );
+            return composite;
+        }
+
+        @Override
+        public Control createDialogArea( Composite parent )
+        {
+            super.createDialogArea( parent );
+
+            errorMessageLabel = new CLabel( parent, SWT.LEFT_TO_RIGHT );
+            errorMessageLabel.setLayoutData( new GridData( SWT.FILL, SWT.BEGINNING, true, false, 2, 1 ) );
+            errorMessageLabel.setImage( PlatformUI.getWorkbench().getSharedImages().getImage(
+                ISharedImages.IMG_OBJS_ERROR_TSK ) );
+            errorMessageLabel.setVisible( false );
+
+            return parent;
         }
 
         @Override
@@ -103,15 +138,17 @@ public class EventActionsTableWizardSection extends StringArrayTableWizardSectio
             {
                 Button button = new Button( buttonComposite, SWT.PUSH );
                 button.setText( lbl );
-                button.addSelectionListener( new SelectionAdapter()
-                {
-
-                    @Override
-                    public void widgetSelected( SelectionEvent e )
+                button.addSelectionListener
+                (
+                    new SelectionAdapter()
                     {
-                        handleArrayDialogButtonSelected( index, lbl, text );
+                        @Override
+                        public void widgetSelected( SelectionEvent e )
+                        {
+                            handleArrayDialogButtonSelected( index, lbl, text );
+                        }
                     }
-                } );
+                );
             }
 
             return text;
@@ -206,6 +243,7 @@ public class EventActionsTableWizardSection extends StringArrayTableWizardSectio
 
                 return;
             }
+
         }
 
         protected void handleSelectEventButton( Text text )
@@ -216,7 +254,12 @@ public class EventActionsTableWizardSection extends StringArrayTableWizardSectio
 
             if( liferayProject != null )
             {
-               hookProperties = liferayProject.getHookSupportedProperties();
+                final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+                if( portal != null )
+                {
+                    hookProperties = portal.getHookSupportedProperties();
+                }
             }
 
             PropertiesFilteredDialog dialog = new PropertiesFilteredDialog( getParentShell(), ".*events.*" ); //$NON-NLS-1$
@@ -232,6 +275,75 @@ public class EventActionsTableWizardSection extends StringArrayTableWizardSectio
             }
         }
 
+        @Override
+        public void modifyText( ModifyEvent e )
+        {
+            boolean classNameValid = false;
+
+            if( texts[1].getText().trim().length() > 0 )
+            {
+                int classNameStatus =
+                    JavaConventions.validateJavaTypeName(
+                        texts[1].getText().trim(), CompilerOptions.VERSION_1_5, CompilerOptions.VERSION_1_5 ).getSeverity();
+                classNameValid = ( classNameStatus != IStatus.ERROR ) ? true : false;
+            }
+
+            if( !classNameValid )
+            {
+                errorMessageLabel.setText( "Invalid class name" );
+            }
+
+            this.errorMessageLabel.setVisible( !( classNameValid ) );
+            getButton( IDialogConstants.OK_ID ).setEnabled( classNameValid );
+        }
+    }
+
+    public class EditEventActionDialog extends EditStringArrayDialog
+    {
+
+        protected CLabel errorMessageLabel;
+
+        public EditEventActionDialog(
+            Shell shell, String windowTitle, String[] labelsForTextField, String[] valuesForTextField )
+        {
+            super( shell, windowTitle, labelsForTextField, valuesForTextField );
+        }
+
+        @Override
+        public Control createDialogArea( Composite parent )
+        {
+            super.createDialogArea( parent );
+
+            errorMessageLabel = new CLabel( parent, SWT.LEFT_TO_RIGHT );
+            errorMessageLabel.setLayoutData( new GridData( SWT.FILL, SWT.BEGINNING, true, false, 2, 1 ) );
+            errorMessageLabel.setImage( PlatformUI.getWorkbench().getSharedImages().getImage(
+                ISharedImages.IMG_OBJS_ERROR_TSK ) );
+            errorMessageLabel.setVisible( false );
+
+            return parent;
+        }
+
+        @Override
+        public void modifyText( ModifyEvent e )
+        {
+            boolean classNameValid = false;
+
+            if( texts[1].getText().trim().length() > 0 )
+            {
+                int classNameStatus =
+                    JavaConventions.validateJavaTypeName(
+                        texts[1].getText().trim(), CompilerOptions.VERSION_1_5, CompilerOptions.VERSION_1_5 ).getSeverity();
+                classNameValid = ( classNameStatus != IStatus.ERROR ) ? true : false;
+            }
+
+            if( !classNameValid )
+            {
+                errorMessageLabel.setText( "Invalid class name" );
+            }
+
+            this.errorMessageLabel.setVisible( !( classNameValid ) );
+            getButton( IDialogConstants.OK_ID ).setEnabled( classNameValid );
+        }
     }
 
     protected String[] buttonLabels;
@@ -245,7 +357,6 @@ public class EventActionsTableWizardSection extends StringArrayTableWizardSectio
         String removeButtonLabel, String[] columnTitles, String[] fieldLabels, Image labelProviderImage,
         IDataModel model, String propertyName )
     {
-
         super( parent, componentLabel, dialogTitle, addButtonLabel, editButtonLabel, removeButtonLabel, columnTitles, fieldLabels, labelProviderImage, model, propertyName );
 
         this.buttonLabels = new String[] { Msgs.select, Msgs.selectNew };
@@ -267,6 +378,33 @@ public class EventActionsTableWizardSection extends StringArrayTableWizardSectio
 
             addStringArray( stringArray );
         }
+    }
+
+    @Override
+    protected void handleEditButtonSelected()
+    {
+        ISelection s = viewer.getSelection();
+
+        if (!(s instanceof IStructuredSelection))
+        {
+            return;
+        }
+
+        IStructuredSelection selection = (IStructuredSelection) s;
+
+        if (selection.size() != 1)
+        {
+            return;
+        }
+
+        Object selectedObj = selection.getFirstElement();
+        String[] valuesForText = (String[]) selectedObj;
+
+        EditEventActionDialog dialog = new EditEventActionDialog(getShell(), dialogTitle, fieldLabels, valuesForText);
+        dialog.open();
+
+        String[] stringArray = dialog.getStringArray();
+        editStringArray(valuesForText, stringArray);
     }
 
     private static class Msgs extends NLS

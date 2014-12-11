@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,13 +15,10 @@
 
 package com.liferay.ide.portlet.vaadin.ui.wizard;
 
-import com.liferay.ide.portlet.core.dd.PortletDescriptorHelper;
 import com.liferay.ide.portlet.ui.wizard.AddPortletOperation;
-import com.liferay.ide.portlet.vaadin.core.dd.VaadinPortletDescriptorHelper;
 import com.liferay.ide.portlet.vaadin.core.operation.INewVaadinPortletClassDataModelProperties;
 import com.liferay.ide.portlet.vaadin.core.operation.NewVaadinApplicationClassOperation;
 
-import org.eclipse.core.resources.IProject;
 import org.eclipse.jface.text.templates.TemplateContextType;
 import org.eclipse.jface.text.templates.persistence.TemplateStore;
 import org.eclipse.jst.j2ee.internal.common.operations.NewJavaEEArtifactClassOperation;
@@ -44,13 +41,4 @@ public class AddVaadinApplicationOperation extends AddPortletOperation
     {
         return new NewVaadinApplicationClassOperation( getDataModel() );
     }
-
-    @Override
-    protected PortletDescriptorHelper createPortletDescriptorHelper( IProject targetProject )
-    {
-        // also adds a dependency to vaadin.jar in
-        // liferay-plugin-package.properties
-        return new VaadinPortletDescriptorHelper( targetProject );
-    }
-
 }

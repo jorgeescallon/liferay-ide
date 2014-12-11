@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -48,12 +48,22 @@ public class MinimumRequiredPortalVersion extends PropertyTester
 
             if( lProject != null && args[0] != null )
             {
-                final Version version = new Version( lProject.getPortalVersion() );
-                Version minimumRequiredPortalVersion = new Version( (String) args[0] );
+                final ILiferayPortal portal = lProject.adapt( ILiferayPortal.class );
 
-                if( CoreUtil.compareVersions( version, minimumRequiredPortalVersion ) >= 0 )
+                if( portal != null )
                 {
-                    return true;
+                    final String portalVersion = portal.getVersion();
+
+                    if( portalVersion != null )
+                    {
+                        final Version version = new Version( portalVersion );
+                        Version minimumRequiredPortalVersion = new Version( (String) args[0] );
+
+                        if( CoreUtil.compareVersions( version, minimumRequiredPortalVersion ) >= 0 )
+                        {
+                            return true;
+                        }
+                    }
                 }
             }
         }

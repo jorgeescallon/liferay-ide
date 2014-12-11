@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -27,19 +27,20 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.IClasspathEntry;
-import org.eclipse.sapphire.modeling.IModelElement;
+import org.eclipse.sapphire.Element;
 import org.eclipse.sapphire.modeling.Path;
 import org.eclipse.sapphire.services.RelativePathService;
 
 /**
  * @author Kamesh Sampath
  * @author Gregory Amerson
+ * @author Simon Jiang
  */
 public class GenericResourceBundlePathService extends RelativePathService
 {
 
     public static final String RB_FILE_EXTENSION = "properties"; //$NON-NLS-1$
-    
+
     private final IWorkspaceRoot WORKSPACE_ROOT = CoreUtil.getWorkspaceRoot();
 
     /**
@@ -49,11 +50,11 @@ public class GenericResourceBundlePathService extends RelativePathService
     final List<Path> computeRoots( IProject project )
     {
         List<Path> roots = new ArrayList<Path>();
-        
+
         if( project != null )
         {
             IClasspathEntry[] cpEntries = CoreUtil.getClasspathEntries( project );
-            
+
             for( IClasspathEntry iClasspathEntry : cpEntries )
             {
                 if( IClasspathEntry.CPE_SOURCE == iClasspathEntry.getEntryKind() )
@@ -69,22 +70,33 @@ public class GenericResourceBundlePathService extends RelativePathService
         return roots;
     }
 
+
     @Override
-    public final Path convertToAbsolute( Path path )
+    public Path convertToRelative( Path path )
     {
-        Path absPath = path.addFileExtension( RB_FILE_EXTENSION );
-        return absPath;
+        final Path localPath = super.convertToRelative( path );
+        final String bundle = localPath.toPortableString();
+
+        if ( bundle != null && bundle.indexOf( "/" ) != -1 )
+        {
+            final String correctBundle = bundle.replace( "/", "." );
+            Path newPath = Path.fromPortableString( correctBundle );
+            return newPath.removeFileExtension();
+        }
+
+        return localPath;
     }
+
 
     /**
      * This method is used to get the IProject handle of the project relative to which the source paths needs to be
      * computed
-     * 
+     *
      * @return handle to IProject
      */
     protected IProject project()
     {
-        return context( IModelElement.class ).adapt( IProject.class );
+        return context( Element.class ).adapt( IProject.class );
     }
 
     /*
@@ -94,10 +106,7 @@ public class GenericResourceBundlePathService extends RelativePathService
     @Override
     public final List<Path> roots()
     {
-        IProject project = project();
-        List<Path> roots = computeRoots( project );
-        
-        return roots;
+        return computeRoots( project() );
     }
 
 }

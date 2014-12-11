@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -18,32 +18,32 @@
 
 package com.liferay.ide.portlet.core.model;
 
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.ElementType;
+import org.eclipse.sapphire.ReferenceValue;
+import org.eclipse.sapphire.ValueProperty;
 import org.eclipse.sapphire.java.JavaType;
 import org.eclipse.sapphire.java.JavaTypeConstraint;
 import org.eclipse.sapphire.java.JavaTypeKind;
 import org.eclipse.sapphire.java.JavaTypeName;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelElementType;
-import org.eclipse.sapphire.modeling.ReferenceValue;
-import org.eclipse.sapphire.modeling.ValueProperty;
 import org.eclipse.sapphire.modeling.annotations.Documentation;
-import org.eclipse.sapphire.modeling.annotations.GenerateImpl;
 import org.eclipse.sapphire.modeling.annotations.Image;
 import org.eclipse.sapphire.modeling.annotations.Label;
+import org.eclipse.sapphire.modeling.annotations.MustExist;
 import org.eclipse.sapphire.modeling.annotations.Reference;
 import org.eclipse.sapphire.modeling.annotations.Required;
 import org.eclipse.sapphire.modeling.annotations.Type;
 import org.eclipse.sapphire.modeling.xml.annotations.XmlBinding;
 
 /**
- * @author kamesh.sampath
+ * @author Kamesh Sampath
+ * @author Simon Jiang
  */
-@GenerateImpl
 @Image( path = "images/obj16/portlet_class_obj.gif" )
-public interface Listener extends IModelElement, Describeable, Displayable
+public interface Listener extends Element, Describeable, Displayable
 {
 
-    ModelElementType TYPE = new ModelElementType( Listener.class );
+    ElementType TYPE = new ElementType( Listener.class );
 
     // *** Implementation ***
 
@@ -52,6 +52,7 @@ public interface Listener extends IModelElement, Describeable, Displayable
     @JavaTypeConstraint( kind = JavaTypeKind.CLASS, type = "javax.portlet.PortletURLGenerationListener" )
     @Label( standard = "Implementation", full = "Listener implementation class" )
     @Required
+    @MustExist
     @XmlBinding( path = "listener-class" )
     @Documentation( content = "The listener implementation class." )
     ValueProperty PROP_IMPLEMENTATION = new ValueProperty( TYPE, "Implementation" ); //$NON-NLS-1$

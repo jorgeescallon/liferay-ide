@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -28,6 +28,7 @@ import org.eclipse.core.externaltools.internal.IExternalToolConstants;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -56,6 +57,8 @@ public class SDKHelper extends LaunchHelper
 
     private String[] additionalVMArgs;
 
+    private IProgressMonitor monitor;
+
     public SDKHelper( SDK sdk )
     {
         super( ANT_LAUNCH_CONFIG_TYPE_ID );
@@ -69,15 +72,21 @@ public class SDKHelper extends LaunchHelper
         // this.launchTimeout = 10000;
     }
 
+    public SDKHelper( SDK sdk, IProgressMonitor monitor )
+    {
+        this( sdk );
+
+        this.monitor = monitor;
+    }
+
     public ILaunchConfiguration createLaunchConfiguration(
-        IPath buildFile, String targets, Map<String, String> properties, boolean separateJRE ) throws CoreException
+        IPath buildFile, String targets, Map<String, String> properties, boolean separateJRE, String workingDir ) throws CoreException
     {
         ILaunchConfigurationWorkingCopy launchConfig = super.createLaunchConfiguration();
 
         launchConfig.setAttribute( IExternalToolConstants.ATTR_LOCATION, buildFile.toOSString() );
 
-        launchConfig.setAttribute(
-            IExternalToolConstants.ATTR_WORKING_DIRECTORY, buildFile.removeLastSegments( 1 ).toOSString() );
+        launchConfig.setAttribute( IExternalToolConstants.ATTR_WORKING_DIRECTORY, workingDir );
 
         launchConfig.setAttribute( IAntLaunchConstants.ATTR_ANT_TARGETS, targets );
 
@@ -171,12 +180,7 @@ public class SDKHelper extends LaunchHelper
         return buffer.toString();
     }
 
-    public void runTarget( IPath buildFile, String targets, Map<String, String> properties ) throws CoreException
-    {
-        runTarget( buildFile, targets, properties, false );
-    }
-
-    public void runTarget( IPath buildFile, String targets, Map<String, String> properties, boolean separateJRE )
+    public void runTarget( IPath buildFile, String targets, Map<String, String> properties, boolean separateJRE, String workingDir )
         throws CoreException
     {
         if( isLaunchRunning() )
@@ -188,9 +192,9 @@ public class SDKHelper extends LaunchHelper
 
         this.currentTargets = targets;
 
-        ILaunchConfiguration launchConfig = createLaunchConfiguration( buildFile, targets, properties, separateJRE );
+        ILaunchConfiguration launchConfig = createLaunchConfiguration( buildFile, targets, properties, separateJRE, workingDir );
 
-        launch( launchConfig, ILaunchManager.RUN_MODE, null );
+        launch( launchConfig, ILaunchManager.RUN_MODE, monitor );
 
         this.currentBuildFile = null;
 
@@ -205,7 +209,9 @@ public class SDKHelper extends LaunchHelper
         {
             if( antLib.toFile().exists() )
             {
-                model.addEntry( RuntimeClasspathModel.USER, JavaRuntime.newArchiveRuntimeClasspathEntry( antLib ) );
+                model.addEntry(
+                    RuntimeClasspathModel.USER,
+                    JavaRuntime.newArchiveRuntimeClasspathEntry( antLib.makeAbsolute() ) );
             }
         }
 

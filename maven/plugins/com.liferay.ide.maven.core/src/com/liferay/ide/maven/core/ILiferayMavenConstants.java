@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,6 +16,7 @@ package com.liferay.ide.maven.core;
 
 /**
  * @author Gregory Amerson
+ * @author Kuo Zhang
  */
 public interface ILiferayMavenConstants
 {
@@ -40,7 +41,7 @@ public interface ILiferayMavenConstants
 
     String LAYOUTTPL_PLUGIN_TYPE = "layouttpl"; //$NON-NLS-1$
 
-    String LIFERAY_MAVEN_MARKER_CONFIGURATION_ERROR_ID = LiferayMavenCore.PLUGIN_ID + ".configurationProblem";//$NON-NLS-1$
+    String LIFERAY_MAVEN_MARKER_CONFIGURATION_WARNING_ID = LiferayMavenCore.PLUGIN_ID + ".configurationProblem";//$NON-NLS-1$
 
     String LIFERAY_MAVEN_PLUGIN = "liferay-maven-plugin"; //$NON-NLS-1$
 
@@ -50,29 +51,21 @@ public interface ILiferayMavenConstants
 
     String M2E_LIFERAY_FOLDER = "m2e-liferay";  //$NON-NLS-1$
 
+    String MAVEN_BUNDLE_PLUGIN_KEY = "org.apache.felix:maven-bundle-plugin";
+
     String PLUGIN_CONFIG_API_BASE_DIR = "apiBaseDir"; //$NON-NLS-1$
-
-    String PLUGIN_CONFIG_APP_AUTO_DEPLOY_DIR = "autoDeployDir"; //$NON-NLS-1$
-
-    String PLUGIN_CONFIG_APP_SERVER_CLASSES_PORTAL_DIR = "appServerClassesPortalDir"; //$NON-NLS-1$
-
-    String PLUGIN_CONFIG_APP_SERVER_DEPLOY_DIR = "appServerDeployDir"; //$NON-NLS-1$
-
-    String PLUGIN_CONFIG_APP_SERVER_LIB_GLOBAL_DIR = "appServerLibGlobalDir"; //$NON-NLS-1$
-
-    String PLUGIN_CONFIG_APP_SERVER_LIB_PORTAL_DIR = "appServerLibPortalDir"; //$NON-NLS-1$
 
     String PLUGIN_CONFIG_APP_SERVER_PORTAL_DIR = "appServerPortalDir"; //$NON-NLS-1$
 
-    String PLUGIN_CONFIG_APP_SERVER_TLD_PORTAL_DIR = "appServerTldPortalDir"; //$NON-NLS-1$
-
     String PLUGIN_CONFIG_LIFERAY_VERSION = "liferayVersion"; //$NON-NLS-1$
+
+    String PLUGIN_CONFIG_PARENT_THEME = "parentTheme";
 
     String PLUGIN_CONFIG_PLUGIN_TYPE = "pluginType"; //$NON-NLS-1$
 
     String PLUGIN_CONFIG_SASS_DIR_NAMES = "sassDirNames"; //$NON-NLS-1$
 
-    String PLUGIN_CONFIG_THEME_TYPE = "theme"; //$NON-NLS-1$
+    String PLUGIN_CONFIG_THEME_TYPE = "themeType"; //$NON-NLS-1$
 
     String PLUGIN_CONFIG_WEBAPP_DIR = "webappDir"; //$NON-NLS-1$
 
@@ -101,5 +94,7 @@ public interface ILiferayMavenConstants
     String THEME_PLUGIN_TYPE = "theme"; //$NON-NLS-1$
 
     String THEME_RESOURCES_FOLDER = "theme-resources"; //$NON-NLS-1$
+
+    String WEB_PLUGIN_TYPE = "web";
 
 }

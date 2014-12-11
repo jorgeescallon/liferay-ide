@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,19 +15,15 @@
 
 package com.liferay.ide.project.core.facet;
 
-import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.ide.core.ILiferayProject;
+import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.FileUtil;
 import com.liferay.ide.project.core.IPluginWizardFragmentProperties;
-import com.liferay.ide.project.core.IPortletFrameworkWizardProvider;
-import com.liferay.ide.project.core.LiferayProjectCore;
+import com.liferay.ide.project.core.ProjectCore;
 import com.liferay.ide.sdk.core.ISDKConstants;
-import com.liferay.ide.sdk.core.SDK;
-import com.liferay.ide.server.util.ServerUtil;
 
-import java.util.Map;
-
-import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ProjectScope;
@@ -39,13 +35,12 @@ import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.jst.jsp.core.internal.JSPCorePlugin;
 import org.eclipse.jst.jsp.core.internal.preferences.JSPCorePreferenceNames;
 import org.eclipse.wst.common.componentcore.datamodel.FacetInstallDataModelProvider;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
 import org.eclipse.wst.common.project.facet.core.IProjectFacetVersion;
 
 /**
  * @author Greg Amerson
- * @author kamesh.sampath [IDE-450]
+ * @author Kamesh Sampath [IDE-450]
  */
 @SuppressWarnings( "restriction" )
 public class PortletPluginFacetInstall extends PluginFacetInstall
@@ -106,6 +101,7 @@ public class PortletPluginFacetInstall extends PluginFacetInstall
 
         if( masterModel != null && masterModel.getBooleanProperty( CREATE_PROJECT_OPERATION ) )
         {
+            /*
             SDK sdk = getSDK();
 
             String portletName = this.masterModel.getStringProperty( PORTLET_NAME );
@@ -116,7 +112,7 @@ public class PortletPluginFacetInstall extends PluginFacetInstall
                     portletName.substring( 0, portletName.indexOf( ISDKConstants.PORTLET_PLUGIN_PROJECT_SUFFIX ) );
             }
             // END FIX IDE-450
-            String displayName = this.masterModel.getStringProperty( DISPLAY_NAME );
+            /*String displayName = this.masterModel.getStringProperty( DISPLAY_NAME );
 
             // get the template delegate
             String portletFrameworkId = this.masterModel.getStringProperty( PORTLET_FRAMEWORK_ID );
@@ -135,6 +131,17 @@ public class PortletPluginFacetInstall extends PluginFacetInstall
 
             // cleanup portlet files
             FileUtil.deleteDir( newPortletPath.toFile(), true );
+            */
+
+            // IDE-1122 SDK creating project has been moved to Class NewPluginProjectWizard
+            String portletName = this.masterModel.getStringProperty( PORTLET_NAME );
+
+            IPath projectTempPath = (IPath) masterModel.getProperty( PROJECT_TEMP_PATH );
+
+            processNewFiles( projectTempPath.append( portletName + ISDKConstants.PORTLET_PLUGIN_PROJECT_SUFFIX ) );
+
+            FileUtil.deleteDir( projectTempPath.toFile(), true );
+            // End IDE-1122
 
             try
             {
@@ -142,7 +149,7 @@ public class PortletPluginFacetInstall extends PluginFacetInstall
             }
             catch( Exception e )
             {
-                LiferayProjectCore.logError( e );
+                ProjectCore.logError( e );
             }
 
             if( masterModel.getBooleanProperty( PLUGIN_FRAGMENT_ENABLED ) )
@@ -157,26 +164,23 @@ public class PortletPluginFacetInstall extends PluginFacetInstall
                         if( fragmentModel.getBooleanProperty( IPluginWizardFragmentProperties.REMOVE_EXISTING_ARTIFACTS ) )
                         {
                             // IDE-110 IDE-648
-                            IVirtualFolder webappRoot = CoreUtil.getDocroot( this.project );
+                            final ILiferayProject lrproject = LiferayCore.create( project );
+                            final IFolder webappRoot = lrproject.getDefaultDocrootFolder();
 
-                            for( IContainer container : webappRoot.getUnderlyingFolders() )
+                            if( webappRoot != null && webappRoot.exists() )
                             {
-                                if( container != null && container.exists() )
-                                {
-                                    IFile viewJsp = container.getFile( new Path( "view.jsp" ) ); //$NON-NLS-1$
+                                IFile viewJsp = webappRoot.getFile( new Path( "view.jsp" ) ); //$NON-NLS-1$
 
-                                    if( viewJsp.exists() )
-                                    {
-                                        viewJsp.delete( true, monitor );
-                                        break;
-                                    }
+                                if( viewJsp.exists() )
+                                {
+                                    viewJsp.delete( true, monitor );
                                 }
                             }
                         }
                     }
                     catch( Exception ex )
                     {
-                        LiferayProjectCore.logError( "Error deleting view.jsp", ex ); //$NON-NLS-1$
+                        ProjectCore.logError( "Error deleting view.jsp", ex ); //$NON-NLS-1$
                     }
                 }
             }
@@ -230,7 +234,7 @@ public class PortletPluginFacetInstall extends PluginFacetInstall
         }
         catch( Exception e1 )
         {
-            LiferayProjectCore.logError( e1 );
+            ProjectCore.logError( e1 );
         }
 
         // IDE-417 set a project preference for disabling JSP fragment validation
@@ -244,7 +248,7 @@ public class PortletPluginFacetInstall extends PluginFacetInstall
         }
         catch( Exception e )
         {
-            LiferayProjectCore.logError( "Could not store jsp fragment validation preference", e ); //$NON-NLS-1$
+            ProjectCore.logError( "Could not store jsp fragment validation preference", e ); //$NON-NLS-1$
         }
 
         if( shouldConfigureDeploymentAssembly() )

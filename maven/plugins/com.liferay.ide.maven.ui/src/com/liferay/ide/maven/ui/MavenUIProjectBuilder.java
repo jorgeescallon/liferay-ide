@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,7 +16,7 @@ package com.liferay.ide.maven.ui;
 
 import com.liferay.ide.core.adapter.LaunchAdapter;
 import com.liferay.ide.maven.core.ILiferayMavenConstants;
-import com.liferay.ide.maven.core.LiferayMavenProject;
+import com.liferay.ide.maven.core.IMavenProject;
 import com.liferay.ide.maven.core.MavenProjectBuilder;
 
 import org.eclipse.core.resources.IFile;
@@ -58,7 +58,7 @@ public class MavenUIProjectBuilder extends MavenProjectBuilder
         super( project );
     }
 
-    public MavenUIProjectBuilder( LiferayMavenProject liferayMavenProject )
+    public MavenUIProjectBuilder( IMavenProject liferayMavenProject )
     {
         super( liferayMavenProject.getProject() );
     }
@@ -141,7 +141,7 @@ public class MavenUIProjectBuilder extends MavenProjectBuilder
         workingCopy.setAttribute( MavenLaunchConstants.ATTR_POM_DIR, basedirLocation.toString() );
         workingCopy.setAttribute( MavenLaunchConstants.ATTR_GOALS, goal );
         workingCopy.setAttribute( MavenLaunchConstants.ATTR_UPDATE_SNAPSHOTS, true );
-        workingCopy.setAttribute( MavenLaunchConstants.ATTR_WORKSPACE_RESOLUTION, false );
+        workingCopy.setAttribute( MavenLaunchConstants.ATTR_WORKSPACE_RESOLUTION, true );
         workingCopy.setAttribute( MavenLaunchConstants.ATTR_SKIP_TESTS, true );
 
         if( projectFacade != null )

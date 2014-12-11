@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,21 +15,15 @@
 
 package com.liferay.ide.service.ui;
 
-import com.liferay.ide.service.ui.template.ServiceBuilderTemplateContextTypeIds;
-
-import java.io.IOException;
-
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
-import org.eclipse.jface.text.templates.ContextTypeRegistry;
-import org.eclipse.jface.text.templates.persistence.TemplateStore;
-import org.eclipse.ui.editors.text.templates.ContributionContextTypeRegistry;
-import org.eclipse.ui.editors.text.templates.ContributionTemplateStore;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
 /**
  * The activator class controls the plug-in life cycle
+ *
+ * @author Gregory Amerson
  */
 public class ServiceUI extends AbstractUIPlugin
 {
@@ -52,53 +46,19 @@ public class ServiceUI extends AbstractUIPlugin
 
     public static void logError( Exception e )
     {
-        getDefault().getLog().log( new Status( IStatus.ERROR, PLUGIN_ID, e.getMessage(), e ) );
+        logError( e.getMessage(), e );
     }
 
-    private ContributionContextTypeRegistry fContextTypeRegistry;
-
-    private ContributionTemplateStore fTemplateStore;
+    public static void logError( String msg, Exception e )
+    {
+        getDefault().getLog().log( new Status( IStatus.ERROR, PLUGIN_ID, msg, e ) );
+    }
 
     /**
      * The constructor
      */
     public ServiceUI()
     {
-    }
-
-    public ContextTypeRegistry getTemplateContextRegistry()
-    {
-        if( fContextTypeRegistry == null )
-        {
-            ContributionContextTypeRegistry registry = new ContributionContextTypeRegistry();
-
-            registry.addContextType( ServiceBuilderTemplateContextTypeIds.NEW );
-
-            fContextTypeRegistry = registry;
-        }
-
-        return fContextTypeRegistry;
-    }
-
-    public TemplateStore getTemplateStore()
-    {
-        if( fTemplateStore == null )
-        {
-            fTemplateStore =
-                new ContributionTemplateStore(
-                    getTemplateContextRegistry(), getPreferenceStore(), "com.liferay.ide.portlet.ui.custom_templates" ); //$NON-NLS-1$
-
-            try
-            {
-                fTemplateStore.load();
-            }
-            catch( IOException e )
-            {
-                logError( e );
-            }
-        }
-
-        return fTemplateStore;
     }
 
     /*

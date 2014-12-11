@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -24,6 +24,8 @@ import org.osgi.framework.Version;
 
 /**
  * @author Gregory Amerson
+ * @author Terry Jia
+ * @author Simon Jiang
  */
 public interface ISDKConstants
 {
@@ -39,6 +41,8 @@ public interface ISDKConstants
 
     static final String _THEME_PLUGIN_PROJECT_SUFFIX = "-theme"; //$NON-NLS-1$
 
+    static final String _WEB_PLUGIN_PROJECT_SUFFIX = "-web"; //$NON-NLS-1$
+
     public static final String[] ANT_LIBRARIES = __defaultPrefs.get( "ant.libraries", StringPool.EMPTY ).split( StringPool.COMMA ); //$NON-NLS-1$
 
     public static final String[] BINARY_PLUGIN_EXTENSIONS = { "*.war" }; //$NON-NLS-1$
@@ -50,8 +54,11 @@ public interface ISDKConstants
         StringPool.ASTERISK + _HOOK_PLUGIN_PROJECT_SUFFIX + "*.war", //$NON-NLS-1$
         StringPool.ASTERISK + _THEME_PLUGIN_PROJECT_SUFFIX + "*.war",  //$NON-NLS-1$
         StringPool.ASTERISK + _PORTLET_PLUGIN_PROJECT_SUFFIX + "*.war", //$NON-NLS-1$
-        StringPool.ASTERISK + _LAYOUTTPL_PLUGIN_PROJECT_SUFFIX + "*.war"  //$NON-NLS-1$
+        StringPool.ASTERISK + _LAYOUTTPL_PLUGIN_PROJECT_SUFFIX + "*.war",  //$NON-NLS-1$
+        StringPool.ASTERISK + _WEB_PLUGIN_PROJECT_SUFFIX + "*.war"  //$NON-NLS-1$
     };
+
+    public static final String BUILD_PROPERTIES = "build.properties"; //$NON-NLS-1$
 
     public static final String DEFAULT_DOCROOT_FOLDER = "docroot";  //$NON-NLS-1$
 
@@ -101,6 +108,8 @@ public interface ISDKConstants
 
     public static final String PROPERTY_APP_SERVER_LIB_GLOBAL_DIR = "app.server{0}lib.global.dir"; //$NON-NLS-1$
 
+    public static final String PROPERTY_APP_SERVER_PARENT_DIR = "app.server.parent.dir"; //$NON-NLS-1$
+
     public static final String PROPERTY_APP_SERVER_PORTAL_DIR = "app.server{0}portal.dir"; //$NON-NLS-1$
 
     public static final String PROPERTY_APP_SERVER_TYPE = "app.server.type"; //$NON-NLS-1$
@@ -137,9 +146,15 @@ public interface ISDKConstants
 
     public static final String PROPERTY_LAYOUTTPL_TEMPLATE_NAME = "layouttpl.template.name"; //$NON-NLS-1$
 
+    public static final String PROPERTY_LP_VERSION = "lp.version";
+
+    public static final String PROPERTY_LP_VERSION_SUFFIX = "lp.version.file.suffix";
+
     public static final String PROPERTY_NAME = "sdk-name"; //$NON-NLS-1$
 
     public static final String PROPERTY_PLUGIN_FILE = "plugin.file"; //$NON-NLS-1$
+
+    public static final String PROPERTY_PLUGIN_FILE_DEFAULT = "plugin.file.default"; //$NON-NLS-1$
 
     public static final String PROPERTY_PORTLET_DISPLAY_NAME = "portlet.display.name"; //$NON-NLS-1$
 
@@ -158,6 +173,12 @@ public interface ISDKConstants
     public static final String PROPERTY_THEME_NAME = "theme.name"; //$NON-NLS-1$
 
     public static final String PROPERTY_THEME_PARENT_DIR = "theme.parent.dir"; //$NON-NLS-1$
+
+    public static final String PROPERTY_WEB_DISPLAY_NAME = "web.display.name"; //$NON-NLS-1$
+
+    public static final String PROPERTY_WEB_NAME = "web.name"; //$NON-NLS-1$
+
+    public static final String PROPERTY_WEB_PARENT_DIR = "web.parent.dir"; //$NON-NLS-1$
 
     public static final String TARGET_ALL = "all"; //$NON-NLS-1$
 
@@ -203,6 +224,12 @@ public interface ISDKConstants
 
     public static final String THEME_PLUGIN_PROJECT_SUFFIX = _THEME_PLUGIN_PROJECT_SUFFIX;
 
-    public final static String VAR_NAME_LIFERAY_SDK_DIR = "liferay_sdk_dir"; //$NON-NLS-1$
+    public static final String VAR_NAME_LIFERAY_SDK_DIR = "liferay_sdk_dir"; //$NON-NLS-1$
+
+    public static final String WEB_PLUGIN_ANT_BUILD = __defaultPrefs.get( "web.plugin.ant.build", null ); //$NON-NLS-1$
+
+    public static final String WEB_PLUGIN_PROJECT_FOLDER = "webs"; //$NON-NLS-1$
+
+    public static final String WEB_PLUGIN_PROJECT_SUFFIX = _WEB_PLUGIN_PROJECT_SUFFIX;
 
 }

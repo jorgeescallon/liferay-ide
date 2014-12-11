@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -52,7 +52,7 @@ public class LiferayProjectImportOperation extends AbstractDataModelOperation
 
         if( projectRecord == null )
         {
-            return LiferayProjectCore.createErrorStatus( "Project record to import is null." ); //$NON-NLS-1$
+            return ProjectCore.createErrorStatus( "Project record to import is null." ); //$NON-NLS-1$
         }
 
         File projectDir = projectRecord.getProjectLocation().toFile();
@@ -75,7 +75,7 @@ public class LiferayProjectImportOperation extends AbstractDataModelOperation
         }
         catch( CoreException e )
         {
-            return LiferayProjectCore.createErrorStatus( e );
+            return ProjectCore.createErrorStatus( e );
         }
 
         return Status.OK_STATUS;

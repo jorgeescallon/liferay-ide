@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,13 +17,14 @@
 
 package com.liferay.ide.hook.core.model.internal;
 
-import com.liferay.ide.project.core.util.ProjectUtil;
+import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.hook.core.model.Hook;
 import com.liferay.ide.hook.core.model.PortalPropertiesFile;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.sapphire.modeling.Path;
 
 /**
@@ -43,26 +44,29 @@ public class HookMethods
 
         if( hook != null )
         {
-            PortalPropertiesFile portalPropertiesFileElement = hook.getPortalPropertiesFile().element( false );
+            PortalPropertiesFile portalPropertiesFileElement = hook.getPortalPropertiesFile().content();
 
             if( portalPropertiesFileElement != null )
             {
-                Path filePath = portalPropertiesFileElement.getValue().getContent();
+                Path filePath = portalPropertiesFileElement.getValue().content();
 
-                for( IFolder folder : ProjectUtil.getSourceFolders( hook.adapt( IProject.class ) ) )
+                if( filePath != null )
                 {
-                    IFile file = folder.getFile( filePath.toPortableString() );
-
-                    if( onlyIfExists )
+                    for( IFolder folder : CoreUtil.getSourceFolders( JavaCore.create( hook.adapt( IProject.class ) ) ) )
                     {
-                        if( file.exists() )
+                        IFile file = folder.getFile( filePath.toPortableString() );
+
+                        if( onlyIfExists )
+                        {
+                            if( file.exists() )
+                            {
+                                retval = file;
+                            }
+                        }
+                        else
                         {
                             retval = file;
                         }
-                    }
-                    else
-                    {
-                        retval = file;
                     }
                 }
             }

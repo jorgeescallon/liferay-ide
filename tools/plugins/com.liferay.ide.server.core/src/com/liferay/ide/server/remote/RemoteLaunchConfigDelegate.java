@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,6 +17,9 @@ package com.liferay.ide.server.remote;
 
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.server.core.LiferayServerCore;
+import com.liferay.ide.server.core.PortalLaunchParticipant;
+import com.liferay.ide.server.core.PortalSourceLookupDirector;
+import com.liferay.ide.server.util.ServerUtil;
 
 import java.util.Map;
 
@@ -37,54 +40,17 @@ import org.eclipse.wst.server.core.ServerCore;
 
 /**
  * @author Greg Amerson
+ * @author Cindy Li
  */
 public class RemoteLaunchConfigDelegate extends AbstractJavaLaunchConfigurationDelegate
 {
-
     public static final String SERVER_ID = "server-id"; //$NON-NLS-1$
-
-    public void launch( ILaunchConfiguration configuration, String mode, ILaunch launch, IProgressMonitor monitor )
-        throws CoreException
-    {
-
-        String serverId = configuration.getAttribute( SERVER_ID, StringPool.EMPTY );
-        IServer server = ServerCore.findServer( serverId );
-
-        if( server == null )
-        {
-            // server has been deleted
-            launch.terminate();
-            return;
-        }
-
-        int state = server.getServerState();
-
-        if( state != IServer.STATE_STARTED )
-        {
-            throw new CoreException(
-                LiferayServerCore.createErrorStatus( Msgs.serverNotRunning ) );
-        }
-
-        if( ILaunchManager.RUN_MODE.equals( mode ) )
-        {
-            runLaunch( server, configuration, launch, monitor );
-        }
-        else if( ILaunchManager.DEBUG_MODE.equals( mode ) )
-        {
-            debugLaunch( server, configuration, launch, monitor );
-        }
-        else
-        {
-            throw new CoreException( LiferayServerCore.createErrorStatus( "Profile mode is not supported." ) ); //$NON-NLS-1$
-        }
-    }
 
     @SuppressWarnings( { "rawtypes", "unchecked", "deprecation" } )
     protected void debugLaunch(
         IServer server, ILaunchConfiguration configuration, ILaunch launch, IProgressMonitor monitor )
         throws CoreException
     {
-
         if( monitor == null )
         {
             monitor = new NullProgressMonitor();
@@ -125,8 +91,9 @@ public class RemoteLaunchConfigDelegate extends AbstractJavaLaunchConfigurationD
             return;
         }
 
-        // set the default source locator if required
-        setDefaultSourceLocator( launch, configuration );
+        final PortalSourceLookupDirector sourceLocator =
+            new PortalSourceLookupDirector( configuration, "com.liferay.ide.server.tomcat.portalSourcePathComputer" ); //$NON-NLS-1$
+        sourceLocator.configureLaunch( launch );
 
         if( !launch.isTerminated() )
         {
@@ -138,9 +105,11 @@ public class RemoteLaunchConfigDelegate extends AbstractJavaLaunchConfigurationD
         if( monitor.isCanceled() || launch.isTerminated() )
         {
             IDebugTarget[] debugTargets = launch.getDebugTargets();
+
             for( int i = 0; i < debugTargets.length; i++ )
             {
                 IDebugTarget target = debugTargets[i];
+
                 if( target.canDisconnect() )
                 {
                     target.disconnect();
@@ -152,14 +121,51 @@ public class RemoteLaunchConfigDelegate extends AbstractJavaLaunchConfigurationD
         monitor.done();
     }
 
+    public void launch( ILaunchConfiguration configuration, String mode, ILaunch launch, IProgressMonitor monitor )
+        throws CoreException
+    {
+        String serverId = configuration.getAttribute( SERVER_ID, StringPool.EMPTY );
+        IServer server = ServerCore.findServer( serverId );
+
+        if( server == null )
+        {
+            // server has been deleted
+            launch.terminate();
+            return;
+        }
+
+        int state = server.getServerState();
+
+        if( state != IServer.STATE_STARTED )
+        {
+            throw new CoreException(
+                LiferayServerCore.error( Msgs.serverNotRunning ) );
+        }
+
+        if( ILaunchManager.RUN_MODE.equals( mode ) )
+        {
+            runLaunch( server, configuration, launch, monitor );
+        }
+        else if( ILaunchManager.DEBUG_MODE.equals( mode ) )
+        {
+            debugLaunch( server, configuration, launch, monitor );
+        }
+        else
+        {
+            throw new CoreException( LiferayServerCore.error( "Profile mode is not supported." ) ); //$NON-NLS-1$
+        }
+
+        for( PortalLaunchParticipant participant : LiferayServerCore.getPortalLaunchParticipants() )
+        {
+            participant.portalPostLaunch( configuration, mode, launch, monitor );
+        }
+    }
+
     protected void runLaunch(
         IServer server, ILaunchConfiguration configuration, ILaunch launch, IProgressMonitor monitor )
         throws CoreException
     {
-
-        IServerManagerConnection connection =
-            LiferayServerCore.getRemoteConnection( (IRemoteServer) server.loadAdapter(
-                IRemoteServer.class, monitor ) );
+        IServerManagerConnection connection = ServerUtil.getServerManagerConnection( server, monitor );
 
         RemoteMonitorProcess process = new RemoteMonitorProcess( server, connection, launch );
 

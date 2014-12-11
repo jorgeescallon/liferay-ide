@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -14,18 +14,18 @@
  *******************************************************************************/
 package com.liferay.ide.service.core.model;
 
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.ElementHandle;
+import org.eclipse.sapphire.ElementList;
+import org.eclipse.sapphire.ElementProperty;
+import org.eclipse.sapphire.ElementType;
+import org.eclipse.sapphire.ListProperty;
 import org.eclipse.sapphire.Since;
-import org.eclipse.sapphire.modeling.ElementProperty;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ListProperty;
-import org.eclipse.sapphire.modeling.ModelElementHandle;
-import org.eclipse.sapphire.modeling.ModelElementList;
-import org.eclipse.sapphire.modeling.ModelElementType;
-import org.eclipse.sapphire.modeling.Value;
-import org.eclipse.sapphire.modeling.ValueProperty;
+import org.eclipse.sapphire.Unique;
+import org.eclipse.sapphire.Value;
+import org.eclipse.sapphire.ValueProperty;
 import org.eclipse.sapphire.modeling.annotations.DefaultValue;
 import org.eclipse.sapphire.modeling.annotations.Documentation;
-import org.eclipse.sapphire.modeling.annotations.GenerateImpl;
 import org.eclipse.sapphire.modeling.annotations.Image;
 import org.eclipse.sapphire.modeling.annotations.Label;
 import org.eclipse.sapphire.modeling.annotations.Required;
@@ -34,17 +34,17 @@ import org.eclipse.sapphire.modeling.xml.annotations.XmlBinding;
 import org.eclipse.sapphire.modeling.xml.annotations.XmlElementBinding;
 import org.eclipse.sapphire.modeling.xml.annotations.XmlListBinding;
 
-@GenerateImpl
 @Image(path = "images/Entity_16x16.gif")
-public interface Entity extends IModelElement
+public interface Entity extends Element
 {
-    ModelElementType TYPE = new ModelElementType( Entity.class );
+    ElementType TYPE = new ElementType( Entity.class );
 
     // *** Name ***
 
     @XmlBinding( path = "@name" )
     @Label( standard = "&name" )
     @Required
+    @Unique
     ValueProperty PROP_NAME = new ValueProperty( TYPE, "Name" ); //$NON-NLS-1$
 
     Value<String> getName();
@@ -101,7 +101,7 @@ public interface Entity extends IModelElement
 
     void setUuidAccessor( Boolean value );
 
-    // *** LocalService
+    // *** LocalService ***
 
     @Type( base = Boolean.class )
     @Label( standard = "&local service" )
@@ -115,7 +115,7 @@ public interface Entity extends IModelElement
 
     void setLocalService( Boolean value );
 
-    // *** RemoteService
+    // *** RemoteService ***
 
     @Type( base = Boolean.class )
     @Label( standard = "&remote service" )
@@ -169,7 +169,7 @@ public interface Entity extends IModelElement
 
     void setTxManager( String value );
 
-    // *** Cache Enabled
+    // *** Cache Enabled ***
 
     @Type( base = Boolean.class )
     @Label( standard = "&cache enabled" )
@@ -183,7 +183,7 @@ public interface Entity extends IModelElement
 
     void setCacheEnabled( Boolean value );
 
-    // *** Json Enabled
+    // *** Json Enabled ***
 
     @Type( base = Boolean.class )
     @Label( standard = "&JSON enabled" )
@@ -196,19 +196,52 @@ public interface Entity extends IModelElement
     void setJsonEnabled( String value );
 
     void setJsonEnabled( Boolean value );
+
+    // *** Trash Enabled ***
+
+    @Type( base = Boolean.class )
+    @Label( standard = "&Trash Enabled" )
+    @XmlBinding( path = "@trash-enabled" )
+    @DefaultValue( text = "false" )
+    @Since( "6.2" )
+    ValueProperty PROP_TRASH_ENABLED= new ValueProperty( TYPE, "TrashEnabled" ); //$NON-NLS-1$
+
+    Value<Boolean> getTrashEnabled();
+
+    void setTrashEnabled( String value );
+
+    void setTrashEnabled( Boolean value );
+
+    // *** Deprecated ***
+
+    @Type( base = Boolean.class )
+    @XmlBinding( path = "@deprecated" )
+    @Label( standard = "&deprecated" )
+    @DefaultValue( text = "false" )
+    @Since( "6.2" )
+    ValueProperty PROP_DEPRECATED = new ValueProperty( TYPE, "Deprecated" ); //$NON-NLS-1$
+
+    Value<Boolean> getDeprecated();
+
+    void setDeprecated( String value );
+
+    void setDeprecated( Boolean value );
+
+    // *** Columns ***
+
     @Type( base = Column.class )
     @Label( standard = "column" )
     @XmlListBinding( mappings = @XmlListBinding.Mapping( element = "column", type = Column.class ) )
     ListProperty PROP_COLUMNS = new ListProperty( TYPE, "Columns" ); //$NON-NLS-1$
 
-    ModelElementList<Column> getColumns();
+    ElementList<Column> getColumns();
 
     @Type( base = Order.class )
     @Label( standard = "order" )
     @XmlElementBinding( mappings = @XmlElementBinding.Mapping( element = "order", type = Order.class ) )
     ElementProperty PROP_ORDER = new ElementProperty( TYPE, "Order" ); //$NON-NLS-1$
 
-    ModelElementHandle<Order> getOrder();
+    ElementHandle<Order> getOrder();
 
     // @XmlElementBinding(path = "order")
     // ImpliedElementProperty PROP_ORDER = new ImpliedElementProperty(TYPE, "Order");
@@ -220,7 +253,7 @@ public interface Entity extends IModelElement
     @XmlListBinding( mappings = @XmlListBinding.Mapping( element = "finder", type = Finder.class ) )
     ListProperty PROP_FINDERS = new ListProperty( TYPE, "Finders" ); //$NON-NLS-1$
 
-    ModelElementList<Finder> getFinders();
+    ElementList<Finder> getFinders();
 
     // *** References ***
 
@@ -229,7 +262,7 @@ public interface Entity extends IModelElement
     @XmlListBinding( mappings = @XmlListBinding.Mapping( element = "reference", type = Reference.class ) )
     ListProperty PROP_REFERENCES = new ListProperty( TYPE, "References" ); //$NON-NLS-1$
 
-    ModelElementList<Reference> getReferences();
+    ElementList<Reference> getReferences();
 
     // *** TxRequireds ***
 
@@ -238,6 +271,6 @@ public interface Entity extends IModelElement
     @XmlListBinding( mappings = @XmlListBinding.Mapping( element = "tx-required", type = TxRequired.class ) )
     ListProperty PROP_TX_REQUIREDS = new ListProperty( TYPE, "TxRequireds" ); //$NON-NLS-1$
 
-    ModelElementList<TxRequired> getTxRequireds();
+    ElementList<TxRequired> getTxRequireds();
 
 }

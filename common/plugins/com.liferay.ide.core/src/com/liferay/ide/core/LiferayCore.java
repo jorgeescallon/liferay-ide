@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,7 +17,11 @@ package com.liferay.ide.core;
 import com.liferay.ide.core.util.CoreUtil;
 
 import org.eclipse.core.net.proxy.IProxyService;
+import org.eclipse.core.resources.IResourceChangeEvent;
+import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Plugin;
 import org.eclipse.core.runtime.Status;
 import org.osgi.framework.BundleContext;
@@ -29,44 +33,48 @@ import org.osgi.util.tracker.ServiceTracker;
  */
 public class LiferayCore extends Plugin
 {
-    private static LiferayProjectAdapterReader adapterReader;
+    private static final LiferayProjectAdapterReader adapterReader = new LiferayProjectAdapterReader();
+
+    public static final IPath GLOBAL_SETTINGS_PATH =
+        new Path( System.getProperty( "user.home", "" ) + "/.liferay-ide" );
+
+    private static LiferayLanguagePropertiesListener liferayLanguagePropertiesListener;
 
     // The shared instance
     private static LiferayCore plugin;
 
     // The plugin ID
-    public static final String PLUGIN_ID = "com.liferay.ide.core"; //$NON-NLS-1$
+    public static final String PLUGIN_ID = "com.liferay.ide.core";
 
     private static LiferayProjectProviderReader providerReader;
+
 
     public static ILiferayProject create( Object adaptable )
     {
         ILiferayProject project = null;
 
-        final ILiferayProjectProvider[] providers = getProviders( adaptable.getClass() );
-
-        if( ! CoreUtil.isNullOrEmpty( providers ) )
+        if( adaptable != null )
         {
-            ILiferayProjectProvider currentProvider = null;
+            final ILiferayProjectProvider[] providers = getProviders( adaptable.getClass() );
 
-            for( ILiferayProjectProvider provider : providers )
+            if( ! CoreUtil.isNullOrEmpty( providers ) )
             {
-                if ( currentProvider == null || provider.getPriority() > currentProvider.getPriority() )
-                {
-                    final ILiferayProject lrp = provider.provide( adaptable );
+                ILiferayProjectProvider currentProvider = null;
 
-                    if( lrp != null )
+                for( ILiferayProjectProvider provider : providers )
+                {
+                    if ( currentProvider == null || provider.getPriority() > currentProvider.getPriority() )
                     {
-                        currentProvider = provider;
-                        project = lrp;
+                        final ILiferayProject lrp = provider.provide( adaptable );
+
+                        if( lrp != null )
+                        {
+                            currentProvider = provider;
+                            project = lrp;
+                        }
                     }
                 }
             }
-        }
-
-        if( project == null )
-        {
-            LiferayCore.logError( "No liferay project providers registered for type: " + adaptable.getClass() ); //$NON-NLS-1$
         }
 
         return project;
@@ -97,6 +105,16 @@ public class LiferayCore extends Plugin
         return new Status( IStatus.ERROR, pluginId, t.getMessage(), t );
     }
 
+    public static IStatus createInfoStatus( String msg )
+    {
+        return createInfoStatus( PLUGIN_ID, msg );
+    }
+
+    public static IStatus createInfoStatus( String pluginId, String msg )
+    {
+        return new Status( IStatus.INFO, pluginId, msg );
+    }
+
     public static IStatus createWarningStatus( String message )
     {
         return new Status( IStatus.WARNING, PLUGIN_ID, message );
@@ -124,12 +142,30 @@ public class LiferayCore extends Plugin
 
     public static synchronized ILiferayProjectAdapter[] getProjectAdapters()
     {
-        if( adapterReader == null )
+        return adapterReader.getExtensions().toArray( new ILiferayProjectAdapter[0] );
+    }
+
+    public static synchronized ILiferayProjectProvider getProvider( String shortName )
+    {
+        for( ILiferayProjectProvider provider : getProviders() )
         {
-            adapterReader = new LiferayProjectAdapterReader();
+            if( provider.getShortName().equals( shortName ) )
+            {
+                return provider;
+            }
         }
 
-        return adapterReader.getExtensions().toArray( new ILiferayProjectAdapter[0] );
+        return null;
+    }
+
+    public static synchronized ILiferayProjectProvider[] getProviders()
+    {
+        if( providerReader == null )
+        {
+            providerReader = new LiferayProjectProviderReader();
+        }
+
+        return providerReader.getProviders();
     }
 
     public static synchronized ILiferayProjectProvider[] getProviders( Class<?> type )
@@ -177,6 +213,11 @@ public class LiferayCore extends Plugin
         getDefault().getLog().log( new Status( IStatus.ERROR, PLUGIN_ID, t.getMessage(), t ) );
     }
 
+    public static void logInfo( String msg )
+    {
+        logError( createInfoStatus( msg ) );
+    }
+
     public static void logWarning( Throwable t )
     {
         getDefault().getLog().log( new Status( IStatus.WARNING, PLUGIN_ID, t.getMessage(), t ) );
@@ -197,6 +238,14 @@ public class LiferayCore extends Plugin
     {
         super.start( context );
         plugin = this;
+
+        if( liferayLanguagePropertiesListener == null )
+        {
+            liferayLanguagePropertiesListener = new LiferayLanguagePropertiesListener();
+
+            ResourcesPlugin.getWorkspace().addResourceChangeListener(
+                liferayLanguagePropertiesListener, IResourceChangeEvent.POST_CHANGE );
+        }
     }
 
     /*
@@ -207,6 +256,12 @@ public class LiferayCore extends Plugin
     {
         plugin = null;
         super.stop( context );
+
+        if( liferayLanguagePropertiesListener != null )
+        {
+            ResourcesPlugin.getWorkspace().removeResourceChangeListener( liferayLanguagePropertiesListener );
+            liferayLanguagePropertiesListener = null;
+        }
     }
 
 }

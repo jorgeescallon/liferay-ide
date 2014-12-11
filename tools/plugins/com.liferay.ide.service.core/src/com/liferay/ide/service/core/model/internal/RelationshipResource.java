@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -22,10 +22,10 @@ import com.liferay.ide.service.core.model.Entity;
 import com.liferay.ide.service.core.model.Relationship;
 import com.liferay.ide.service.core.model.ServiceBuilder;
 
-import org.eclipse.sapphire.modeling.BindingImpl;
-import org.eclipse.sapphire.modeling.ModelProperty;
-import org.eclipse.sapphire.modeling.Resource;
-import org.eclipse.sapphire.modeling.ValueBindingImpl;
+import org.eclipse.sapphire.Property;
+import org.eclipse.sapphire.PropertyBinding;
+import org.eclipse.sapphire.Resource;
+import org.eclipse.sapphire.ValuePropertyBinding;
 
 /**
  * @author Gregory Amerson
@@ -41,16 +41,14 @@ public class RelationshipResource extends Resource
     }
 
     @Override
-    protected BindingImpl createBinding( ModelProperty property )
+    protected PropertyBinding createBinding( Property property )
     {
-        BindingImpl binding = null;
-        String[] params = null;
+        PropertyBinding binding = null;
 
-        if( Relationship.PROP_FROM_ENTITY.equals( property ) )
+        if( Relationship.PROP_FROM_ENTITY.equals( property.definition() ) )
         {
-            binding = new ValueBindingImpl()
+            binding = new ValuePropertyBinding()
             {
-
                 @Override
                 public String read()
                 {
@@ -65,11 +63,10 @@ public class RelationshipResource extends Resource
                 }
             };
         }
-        else if( Relationship.PROP_TO_ENTITY.equals( property ) )
+        else if( Relationship.PROP_TO_ENTITY.equals( property.definition() ) )
         {
-            binding = new ValueBindingImpl()
+            binding = new ValuePropertyBinding()
             {
-
                 @Override
                 public String read()
                 {
@@ -87,7 +84,7 @@ public class RelationshipResource extends Resource
 
         if( binding != null )
         {
-            binding.init( element(), property, params );
+            binding.init( property );
         }
 
         return binding;
@@ -114,7 +111,7 @@ public class RelationshipResource extends Resource
 
             for( Column column : toEntity.getColumns() )
             {
-                if( column.isPrimary().getContent() )
+                if( column.isPrimary().content() )
                 {
                     primaryKeyColumn = column;
                     break;
@@ -124,7 +121,7 @@ public class RelationshipResource extends Resource
             if( primaryKeyColumn != null )
             {
                 final Column column = fromEntity.getColumns().insert();
-                column.setName( primaryKeyColumn.getName().getContent() );
+                column.setName( primaryKeyColumn.getName().content() );
                 column.setType( "long" ); //$NON-NLS-1$
             }
         }

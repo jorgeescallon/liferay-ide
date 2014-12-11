@@ -29,7 +29,7 @@ import org.eclipse.osgi.util.NLS;
 
 /**
  * Contains a series of static utility methods for working with zip archives.
- * 
+ *
  * @author <a href="mailto:konstantin.komissarchik@oracle.com">Konstantin Komissarchik</a>
  */
 
@@ -47,6 +47,32 @@ public final class ZipUtil {
 			initializeMessages(ZipUtil.class.getName(), Resources.class);
 		}
 	}
+
+	private static void delete(final File f)
+
+		throws IOException
+
+	{
+		if (f.isDirectory()) {
+			for (File child : f.listFiles()) {
+				delete(child);
+			}
+		}
+
+		if (!f.delete()) {
+			final String msg = "Could not delete " + f.getPath() + "."; //$NON-NLS-1$ //$NON-NLS-2$
+			throw new IOException(msg);
+		}
+	}
+
+	public static String getFirstZipEntryName( File zipFile ) throws Exception
+    {
+        final ZipFile zip = new ZipFile( zipFile );
+        final String name = zip.entries().nextElement().getName();
+        zip.close();
+
+        return name;
+    }
 
 	public static ZipEntry getZipEntry(final ZipFile zip, final String name) {
 		final String lcasename = name.toLowerCase();
@@ -87,84 +113,110 @@ public final class ZipUtil {
 		unzip(file, destdir, new NullProgressMonitor());
 	}
 
-	public static void unzip(final File file, final File destdir, final IProgressMonitor monitor)
+	public static void unzip( final File file, final File destdir, final IProgressMonitor monitor ) throws IOException
+    {
+	    unzip( file, null, destdir, monitor );
+    }
 
-		throws IOException
-
+	public static void unzip( final File file, final String entryToStart, final File destdir, final IProgressMonitor monitor )
+	    throws IOException
 	{
-		final ZipFile zip = open(file);
+	    final ZipFile zip = open( file );
 
-		try {
-			final Enumeration<? extends ZipEntry> entries = zip.entries();
+	    try
+	    {
+	        final Enumeration<? extends ZipEntry> entries = zip.entries();
 
-			final int totalWork = zip.size();
-			monitor.beginTask( Resources.progressUnzipping, totalWork );
+            final int totalWork = zip.size();
+            monitor.beginTask( Resources.progressUnzipping, totalWork );
 
-			int c = 0;
+            int c = 0;
+            boolean foundStartEntry = entryToStart == null;
 
-			while (entries.hasMoreElements()) {
-				final ZipEntry entry = entries.nextElement();
+            while (entries.hasMoreElements())
+            {
+                final ZipEntry entry = entries.nextElement();
 
-				monitor.worked(1);
+                if( !foundStartEntry )
+                {
+                    foundStartEntry = entryToStart.equals( entry.getName() );
+                    continue;
+                }
 
-				final String taskMsg =
-					NLS.bind( Resources.progressUnzipped, new Object[] { file.getName(), c++, totalWork } );
-				monitor.setTaskName(taskMsg);
+                monitor.worked(1);
 
-				if (entry.isDirectory())
-					continue;
+                final String taskMsg =
+                    NLS.bind( Resources.progressUnzipped, new Object[] { file.getName(), c++, totalWork } );
+                monitor.subTask( taskMsg );
 
-				final File f = new File(destdir, entry.getName());
-				final File dir = f.getParentFile();
+                if (entry.isDirectory())
+                    continue;
 
-				if (!dir.exists() && !dir.mkdirs()) {
-					final String msg = "Could not create dir: " + dir.getPath(); //$NON-NLS-1$
-					throw new IOException(msg);
-				}
+                String entryName = null;
 
-				InputStream in = null;
-				FileOutputStream out = null;
+                if( entryToStart == null )
+                {
+                    entryName = entry.getName();
+                }
+                else
+                {
+                    entryName = entry.getName().replaceFirst( entryToStart, "" ); //$NON-NLS-1$
+                }
 
-				try {
-					in = zip.getInputStream(entry);
-					out = new FileOutputStream(f);
+                final File f = new File( destdir, entryName );
+                final File dir = f.getParentFile();
 
-					final byte[] bytes = new byte[1024];
-					int count = in.read(bytes);
+                if (!dir.exists() && !dir.mkdirs()) {
+                    final String msg = "Could not create dir: " + dir.getPath(); //$NON-NLS-1$
+                    throw new IOException(msg);
+                }
 
-					while (count != -1) {
-						out.write(bytes, 0, count);
-						count = in.read(bytes);
-					}
+                InputStream in = null;
+                FileOutputStream out = null;
 
-					out.flush();
-				}
-				finally {
-					if (in != null) {
-						try {
-							in.close();
-						}
-						catch (IOException e) {
-						}
-					}
+                try {
+                    in = zip.getInputStream(entry);
+                    out = new FileOutputStream(f);
 
-					if (out != null) {
-						try {
-							out.close();
-						}
-						catch (IOException e) {
-						}
-					}
-				}
-			}
-		}
-		finally {
-			try {
-				zip.close();
-			}
-			catch (IOException e) {
-			}
-		}
+                    final byte[] bytes = new byte[1024];
+                    int count = in.read(bytes);
+
+                    while (count != -1) {
+                        out.write(bytes, 0, count);
+                        count = in.read(bytes);
+                    }
+
+                    out.flush();
+                }
+                finally {
+                    if (in != null) {
+                        try {
+                            in.close();
+                        }
+                        catch (IOException e) {
+                        }
+                    }
+
+                    if (out != null) {
+                        try {
+                            out.close();
+                        }
+                        catch (IOException e) {
+                        }
+                    }
+                }
+            }
+	    }
+	    finally
+	    {
+            try
+            {
+                zip.close();
+            }
+            catch (IOException e)
+            {
+            }
+        }
 	}
 
 	public static void zip(final File dir, final File target)
@@ -191,23 +243,6 @@ public final class ZipUtil {
 			}
 			catch (IOException e) {
 			}
-		}
-	}
-
-	private static void delete(final File f)
-
-		throws IOException
-
-	{
-		if (f.isDirectory()) {
-			for (File child : f.listFiles()) {
-				delete(child);
-			}
-		}
-
-		if (!f.delete()) {
-			final String msg = "Could not delete " + f.getPath() + "."; //$NON-NLS-1$ //$NON-NLS-2$
-			throw new IOException(msg);
 		}
 	}
 
@@ -273,7 +308,7 @@ public final class ZipUtil {
 		}
 	}
 
-	/**
+    /**
 	 * This class is a container for static methods and is not meant to be instantiated.
 	 */
 

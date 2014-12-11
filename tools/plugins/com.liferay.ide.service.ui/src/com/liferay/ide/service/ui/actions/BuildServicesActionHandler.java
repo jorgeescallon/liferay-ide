@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -22,8 +22,9 @@ import com.liferay.ide.service.ui.ServiceUIUtil;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.osgi.util.NLS;
+import org.eclipse.sapphire.ui.Presentation;
 import org.eclipse.sapphire.ui.SapphireActionHandler;
-import org.eclipse.sapphire.ui.SapphireRenderingContext;
+import org.eclipse.sapphire.ui.forms.swt.SwtPresentation;
 
 /**
  * @author Gregory Amerson
@@ -32,9 +33,9 @@ public class BuildServicesActionHandler extends SapphireActionHandler
 {
 
     @Override
-    protected Object run( SapphireRenderingContext context )
+    protected Object run( Presentation context )
     {
-        IFile file = context.getPart().getModelElement().adapt( IFile.class );
+        IFile file = context.part().getModelElement().adapt( IFile.class );
 
         if( file != null && file.exists() )
         {
@@ -47,7 +48,8 @@ public class BuildServicesActionHandler extends SapphireActionHandler
         }
         else
         {
-            MessageDialog.openWarning( context.getShell(), Msgs.buildServices, Msgs.ActionUnavailableImportProject );
+            MessageDialog.openWarning(
+                ( (SwtPresentation) context ).shell(), Msgs.buildServices, Msgs.ActionUnavailableImportProject );
         }
 
         return null;

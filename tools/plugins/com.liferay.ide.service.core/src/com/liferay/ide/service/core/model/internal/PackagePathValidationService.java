@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -22,8 +22,8 @@ import org.eclipse.jdt.core.JavaConventions;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jst.j2ee.internal.common.J2EECommonMessages;
 import org.eclipse.osgi.util.NLS;
+import org.eclipse.sapphire.Value;
 import org.eclipse.sapphire.modeling.Status;
-import org.eclipse.sapphire.modeling.Value;
 import org.eclipse.sapphire.services.ValidationService;
 
 /**
@@ -33,10 +33,10 @@ import org.eclipse.sapphire.services.ValidationService;
 public class PackagePathValidationService extends ValidationService
 {
     @Override
-    public Status validate()
+    public Status compute()
     {
         final Value<String> packagePath = context().find( ServiceBuilder.class ).getPackagePath();
-        String packPathVal = packagePath.getContent();
+        String packPathVal = packagePath.content();
 
         if( packPathVal == null )
         {

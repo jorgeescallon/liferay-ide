@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -14,6 +14,16 @@
  *******************************************************************************/
 package com.liferay.ide.service.core.util;
 
+import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.ide.project.core.util.SearchFilesVisitor;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.JavaCore;
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentType;
 
@@ -24,6 +34,31 @@ import org.w3c.dom.DocumentType;
  */
 public class ServiceUtil
 {
+
+    public static IJavaProject[] getAllServiceProjects()
+    {
+        final List<IJavaProject> serviceProjects = new ArrayList<IJavaProject>();
+
+        for( final IProject project : CoreUtil.getAllProjects() )
+        {
+            if( project.isAccessible() )
+            {
+                final IJavaProject jp = JavaCore.create( project );
+
+                if( jp != null )
+                {
+                    final List<IFile> serviceXmls = new SearchFilesVisitor().searchFiles( project, "service.xml" );
+
+                    if( serviceXmls.size() > 0 )
+                    {
+                        serviceProjects.add( jp );
+                    }
+                }
+            }
+        }
+
+        return serviceProjects.toArray( new IJavaProject[0] );
+    }
 
     public static String getDTDVersion( Document document )
     {

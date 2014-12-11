@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,12 +15,13 @@
 
 package com.liferay.ide.theme.core.facet;
 
+import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.FileUtil;
+import com.liferay.ide.project.core.PluginsSDKProject;
 import com.liferay.ide.project.core.facet.IPluginFacetConstants;
 import com.liferay.ide.project.core.facet.PluginFacetInstall;
 import com.liferay.ide.sdk.core.ISDKConstants;
-import com.liferay.ide.sdk.core.SDK;
 import com.liferay.ide.theme.core.ThemeCSSBuilder;
 import com.liferay.ide.theme.core.ThemeCore;
 
@@ -41,6 +42,7 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
@@ -51,7 +53,7 @@ import org.eclipse.wst.common.project.facet.core.IProjectFacetVersion;
 
 /**
  * @author Greg Amerson
- * @author kamesh.sampath [IDE-450]
+ * @author Kamesh Sampath [IDE-450]
  * @author Cindy Li
  */
 public class ThemePluginFacetInstall extends PluginFacetInstall
@@ -69,6 +71,7 @@ public class ThemePluginFacetInstall extends PluginFacetInstall
 
         if( masterModel != null && masterModel.getBooleanProperty( CREATE_PROJECT_OPERATION ) )
         {
+            /*
             // get the template zip for theme and extract into the project
             SDK sdk = getSDK();
 
@@ -89,6 +92,17 @@ public class ThemePluginFacetInstall extends PluginFacetInstall
 
             // cleanup files
             FileUtil.deleteDir( newThemePath.toFile(), true );
+            */
+
+            // IDE-1122 SDK creating project has been moved to Class NewPluginProjectWizard
+            String themeName = this.masterModel.getStringProperty( THEME_NAME );
+
+            IPath projectTempPath = (IPath) masterModel.getProperty( PROJECT_TEMP_PATH );
+
+            processNewFiles( projectTempPath.append( themeName + ISDKConstants.THEME_PLUGIN_PROJECT_SUFFIX ) );
+
+            FileUtil.deleteDir( projectTempPath.toFile(), true );
+            // End IDE-1122
 
             // delete META-INF
             CoreUtil.deleteResource( project.findMember( ISDKConstants.DEFAULT_DOCROOT_FOLDER + "/META-INF" ) ); //$NON-NLS-1$
@@ -107,7 +121,8 @@ public class ThemePluginFacetInstall extends PluginFacetInstall
             configureDeploymentAssembly( IPluginFacetConstants.PORTLET_PLUGIN_SDK_SOURCE_FOLDER, DEFAULT_DEPLOY_PATH );
         }
 
-        IResource libRes = CoreUtil.getDefaultDocrootFolder( project ).findMember( "WEB-INF/lib" ); //$NON-NLS-1$
+        final ILiferayProject lrproject = new PluginsSDKProject( project, null );
+        final IResource libRes = lrproject.findDocrootResource( new Path( "WEB-INF/lib" ) );
 
         if( libRes != null && libRes.exists() )
         {
@@ -120,14 +135,15 @@ public class ThemePluginFacetInstall extends PluginFacetInstall
             }
         }
 
-        updateProjectFiles( project );
+        if( shouldUpdateBuildXml() )
+        {
+            updateBuildXml( project );
+        }
 
         if( shouldInstallThemeBuilder() )
         {
             installThemeBuilder( this.project );
         }
-
-
 
         try
         {
@@ -233,18 +249,17 @@ public class ThemePluginFacetInstall extends PluginFacetInstall
         }
     }
 
-    @Override
-    protected boolean shouldInstallPluginLibraryDelegate()
-    {
-        return true;
-    }
-
     protected boolean shouldInstallThemeBuilder()
     {
         return this.model.getBooleanProperty( INSTALL_THEME_CSS_BUILDER );
     }
 
-    public void updateProjectFiles( IProject project ) throws CoreException
+    protected boolean shouldUpdateBuildXml()
+    {
+        return this.model.getBooleanProperty( UPDATE_BUILD_XML );
+    }
+
+    public void updateBuildXml( IProject project ) throws CoreException
     {
         String themeParent = this.masterModel.getStringProperty( THEME_PARENT );
         String tplFramework = this.masterModel.getStringProperty( THEME_TEMPLATE_FRAMEWORK );

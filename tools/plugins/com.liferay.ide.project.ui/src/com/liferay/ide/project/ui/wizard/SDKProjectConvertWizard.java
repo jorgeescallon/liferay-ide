@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,7 +16,7 @@
 package com.liferay.ide.project.ui.wizard;
 
 import com.liferay.ide.project.core.SDKProjectConvertDataModelProvider;
-import com.liferay.ide.project.ui.ProjectUIPlugin;
+import com.liferay.ide.project.ui.ProjectUI;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.jface.viewers.IStructuredSelection;
@@ -48,8 +48,8 @@ public class SDKProjectConvertWizard extends DataModelWizard implements IWorkben
 
         setWindowTitle( Msgs.convertProject );
 
-        setDefaultPageImageDescriptor( ProjectUIPlugin.imageDescriptorFromPlugin(
-            ProjectUIPlugin.PLUGIN_ID, "/icons/wizban/convert_wiz.png" ) ); //$NON-NLS-1$
+        setDefaultPageImageDescriptor( ProjectUI.imageDescriptorFromPlugin(
+            ProjectUI.PLUGIN_ID, "/icons/wizban/convert_wiz.png" ) ); //$NON-NLS-1$
     }
 
     @Override

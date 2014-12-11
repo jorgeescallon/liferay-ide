@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,13 +15,14 @@
 
 package com.liferay.ide.project.core;
 
-import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.NodeUtil;
 import com.liferay.ide.core.util.StringPool;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.preferences.IPreferencesService;
 import org.eclipse.core.runtime.preferences.IScopeContext;
@@ -42,8 +44,6 @@ import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.ITypeHierarchy;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.osgi.util.NLS;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFile;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
 import org.eclipse.wst.sse.core.StructuredModelManager;
 import org.eclipse.wst.sse.core.internal.provisional.IStructuredModel;
 import org.eclipse.wst.sse.core.internal.validate.ValidationMessage;
@@ -74,6 +74,7 @@ public abstract class BaseValidator extends AbstractValidator
         super();
     }
 
+    @SuppressWarnings( "unchecked" )
     protected Map<String, Object>[] checkAllClassElements(
         Map<String, String> map, IJavaProject javaProject, IFile liferayDescriptorXml, String classExistPreferenceKey,
         String classHierarchyPreferenceKey, IScopeContext[] preferenceScopes, String preferenceNodeQualifier,
@@ -86,7 +87,7 @@ public abstract class BaseValidator extends AbstractValidator
         {
             liferayDescriptorXmlModel = StructuredModelManager.getModelManager().getModelForRead( liferayDescriptorXml );
 
-            if( liferayDescriptorXmlModel != null && liferayDescriptorXmlModel instanceof IDOMModel && map != null)
+            if( liferayDescriptorXmlModel != null && liferayDescriptorXmlModel instanceof IDOMModel && map != null )
             {
                 liferayDescriptorXmlDocument = ( (IDOMModel) liferayDescriptorXmlModel ).getDocument();
 
@@ -101,7 +102,7 @@ public abstract class BaseValidator extends AbstractValidator
         }
         catch( IOException e )
         {
-            LiferayProjectCore.logError( e );
+            ProjectCore.logError( e );
         }
         finally
         {
@@ -149,7 +150,7 @@ public abstract class BaseValidator extends AbstractValidator
                     {
                         try
                         {
-                            IType checkType = javaProject.findType( superType );
+                            IType checkType = javaProject.findType( superType.trim() );
 
                             if( checkType != null )
                             {
@@ -164,13 +165,14 @@ public abstract class BaseValidator extends AbstractValidator
                         }
                         catch( JavaModelException e )
                         {
-                            LiferayProjectCore.logError( e );
+                            ProjectCore.logError( e );
                         }
                     }
 
                     if( typeFound == false )
                     {
-                        String msg = MessageFormat.format( MESSAGE_CLASS_INCORRECT_HIERARCHY, className, superTypeNames );
+                        String msg =
+                            MessageFormat.format( MESSAGE_CLASS_INCORRECT_HIERARCHY, className, superTypeNames );
 
                         if( superTypeNames.contains( StringPool.COMMA ) )
                         {
@@ -215,114 +217,6 @@ public abstract class BaseValidator extends AbstractValidator
         }
     }
 
-    protected Map<String, Object> checkClassResource(
-        IJavaProject javaProject, Node classResourceSpecifier, String preferenceNodeQualifier,
-        IScopeContext[] preferenceScopes, String preferenceKey, String errorMessage )
-    {
-        return checkClassResource(
-            javaProject, classResourceSpecifier, preferenceNodeQualifier, preferenceScopes, preferenceKey,
-            errorMessage, false );
-    }
-
-    protected Map<String, Object> checkClassResource(
-        IJavaProject javaProject, Node classResourceSpecifier, String preferenceNodeQualifier,
-        IScopeContext[] preferenceScopes, String preferenceKey, String errorMessage, boolean warnPropertiesSuffix )
-    {
-        String classResource = NodeUtil.getTextContent( classResourceSpecifier );
-
-        if( classResource != null && classResource.length() > 0 )
-        {
-            if( classResource.endsWith( ".properties" ) && warnPropertiesSuffix ) //$NON-NLS-1$
-            {
-                String msg =
-                    MessageFormat.format(
-                        Msgs.classResourceNotEndWithProperties, new Object[] { classResource } );
-                return createMarkerValues(
-                    preferenceNodeQualifier, preferenceScopes, preferenceKey, (IDOMNode) classResourceSpecifier, msg );
-            }
-
-            try
-            {
-                IResource classResourceValue = null;
-                IClasspathEntry[] classpathEntries = javaProject.getResolvedClasspath( true );
-
-                for( IClasspathEntry entry : classpathEntries )
-                {
-                    if( entry.getEntryKind() == IClasspathEntry.CPE_SOURCE )
-                    {
-                        IPath entryPath = entry.getPath();
-                        IPath classResourcePath = entryPath.append( classResource );
-
-                        classResourceValue =
-                            javaProject.getJavaModel().getWorkspace().getRoot().findMember( classResourcePath );
-
-                        if( classResourceValue != null )
-                        {
-                            break;
-                        }
-
-                        IPath qualifiedResourcePath = entryPath.append( classResource.replaceAll( "\\.", "/" ) ); //$NON-NLS-1$ //$NON-NLS-2$
-
-                        classResourceValue =
-                            javaProject.getJavaModel().getWorkspace().getRoot().findMember( qualifiedResourcePath );
-
-                        if( classResourceValue != null )
-                        {
-                            break;
-                        }
-
-                        String resourceName = classResourcePath.lastSegment();
-
-                        if( classResourceValue == null && classResourcePath.segmentCount() > 0 )
-                        {
-                            // check for a .properties of the same resource path in case of a resource bundle element
-                            // that doesn't append the .properties
-                            IPath parent = classResourcePath.removeLastSegments( 1 );
-
-                            IPath propertiesClassResourcePath = parent.append( resourceName + ".properties" ); //$NON-NLS-1$
-
-                            classResourceValue =
-                                javaProject.getJavaModel().getWorkspace().getRoot().findMember(
-                                    propertiesClassResourcePath );
-
-                            if( classResourceValue != null )
-                            {
-                                break;
-                            }
-
-                            propertiesClassResourcePath =
-                                parent.append( resourceName.replaceAll( "\\.", "/" ) + ".properties" ); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-
-                            classResourceValue =
-                                javaProject.getJavaModel().getWorkspace().getRoot().findMember(
-                                    propertiesClassResourcePath );
-
-                            if( classResourceValue != null )
-                            {
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if( classResourceValue == null )
-                {
-                    String msg = MessageFormat.format( errorMessage, new Object[] { classResource } );
-
-                    return createMarkerValues(
-                        preferenceNodeQualifier, preferenceScopes, preferenceKey, (IDOMNode) classResourceSpecifier,
-                        msg );
-                }
-            }
-            catch( JavaModelException e1 )
-            {
-                // no error msg
-            }
-        }
-
-        return null;
-    }
-
     protected void checkDocrootElement(
         IDOMDocument document, String element, IProject project, String preferenceNodeQualifier,
         IScopeContext[] preferenceScopes, String validationKey, String messageKey, List<Map<String, Object>> problems )
@@ -353,25 +247,15 @@ public abstract class BaseValidator extends AbstractValidator
         if( resourceValue != null && resourceValue.length() > 0 )
         {
             // IDE-110 IDE-648
-            final IVirtualFolder webappRoot = CoreUtil.getDocroot( project );
+            final IResource resource =
+                LiferayCore.create( project ).findDocrootResource( new Path( resourceValue ) );
 
-            if( webappRoot != null )
+            if( resource == null || ! resource.exists() )
             {
-                // check for file first
-                IVirtualFile resourceFile = webappRoot.getFile( resourceValue );
+                String msg = MessageFormat.format( errorMessage, new Object[] { resourceValue } );
 
-                if( resourceFile == null || !resourceFile.exists() )
-                {
-                    IVirtualFolder resourceFolder = webappRoot.getFolder( resourceValue );
-
-                    if( resourceFolder == null || !resourceFolder.exists() )
-                    {
-                        String msg = MessageFormat.format( errorMessage, new Object[] { resourceValue } );
-
-                        return createMarkerValues(
-                            preferenceNodeQualifier, preferenceScopes, preferenceKey, (IDOMNode) resourceSpecifier, msg );
-                    }
-                }
+                return createMarkerValues(
+                    preferenceNodeQualifier, preferenceScopes, preferenceKey, (IDOMNode) resourceSpecifier, msg );
             }
         }
 
@@ -416,7 +300,7 @@ public abstract class BaseValidator extends AbstractValidator
         }
         catch( IOException e )
         {
-            LiferayProjectCore.logError( e );
+            ProjectCore.logError( e );
         }
         finally
         {
@@ -433,6 +317,30 @@ public abstract class BaseValidator extends AbstractValidator
         }
 
         return map;
+    }
+
+    protected IPath[] getSourceEntries( IJavaProject javaProject )
+    {
+        List<IPath> paths = new ArrayList<IPath>();
+
+        try
+        {
+            final IClasspathEntry[] classpathEntries = javaProject.getResolvedClasspath( true );
+
+            for( IClasspathEntry entry : classpathEntries )
+            {
+                if( entry.getEntryKind() == IClasspathEntry.CPE_SOURCE )
+                {
+                    paths.add( entry.getPath() );
+                }
+            }
+        }
+        catch( JavaModelException e )
+        {
+            ProjectCore.logError( "Error resolving classpath.", e );
+        }
+
+        return paths.toArray( new IPath[0] );
     }
 
     protected Integer getMessageSeverity( String qualifier, IScopeContext[] preferenceScopes, String key )
@@ -491,8 +399,8 @@ public abstract class BaseValidator extends AbstractValidator
 
     private static class Msgs extends NLS
     {
+
         public static String classNotFound;
-        public static String classResourceNotEndWithProperties;
         public static String possibleTypes;
         public static String typeLabel;
         public static String typeHierarchyIncorrect;

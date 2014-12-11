@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,17 +15,18 @@
 
 package com.liferay.ide.hook.core.model.internal;
 
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.server.util.ServerUtil;
 
 import java.util.Arrays;
-import java.util.SortedSet;
+import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IPath;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.services.PossibleValuesService;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.PossibleValuesService;
 
 /**
  * @author Gregory Amerson
@@ -36,11 +37,11 @@ public class PortalFilterNamesPossibleValuesService extends PossibleValuesServic
     private String[] servletFilterNames;
 
     @Override
-    protected void fillPossibleValues( SortedSet<String> values )
+    protected void compute( Set<String> values )
     {
         if( this.servletFilterNames == null )
         {
-            final IFile hookFile = this.context().find( IModelElement.class ).adapt( IFile.class );
+            final IFile hookFile = this.context().find( Element.class ).adapt( IFile.class );
 
             if( hookFile != null )
             {
@@ -50,9 +51,17 @@ public class PortalFilterNamesPossibleValuesService extends PossibleValuesServic
 
                     if( liferayProject != null )
                     {
-                        final IPath appServerPortalDir = liferayProject.getAppServerPortalDir();
+                        final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
 
-                        this.servletFilterNames = ServerUtil.getServletFilterNames( appServerPortalDir );
+                        if( portal != null )
+                        {
+                            final IPath appServerPortalDir = portal.getAppServerPortalDir();
+
+                            if( appServerPortalDir != null )
+                            {
+                                this.servletFilterNames = ServerUtil.getServletFilterNames( appServerPortalDir );
+                            }
+                        }
                     }
                 }
                 catch( Exception e )

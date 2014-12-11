@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -22,6 +22,7 @@ import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 
 /**
  * @author Greg Amerson
+ * @author Terry Jia
  */
 public interface ILiferayTomcatConstants
 {
@@ -38,7 +39,12 @@ public interface ILiferayTomcatConstants
 
     String DEFAULT_USER_TIMEZONE = _defaultPrefs.get( "default.user.timezone", "GMT" ); //$NON-NLS-1$ //$NON-NLS-2$
 
+    int DEVELOPMENT_SERVER_MODE = 2;
+
     String[] LIB_EXCLUDES = _defaultPrefs.get( "tomcat.lib.excludes", StringPool.EMPTY ).split( StringPool.COMMA ); //$NON-NLS-1$
 
     boolean PREVENT_MULTI_EXT_PLUGINS_DEPLOY = _defaultPrefs.getBoolean( "prevent.multi.ext.plugins.deploy", false ); //$NON-NLS-1$
+
+    int STANDARD_SERVER_MODE = 1;
+
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,11 +15,7 @@
 
 package com.liferay.ide.layouttpl.ui.parts;
 
-import com.liferay.ide.layouttpl.ui.policies.LayoutTplDiagramLayoutEditPolicy;
-
 import org.eclipse.draw2d.Panel;
-import org.eclipse.gef.EditPolicy;
-import org.eclipse.gef.editpolicies.RootComponentEditPolicy;
 import org.eclipse.swt.graphics.Color;
 
 /**
@@ -30,22 +26,20 @@ public class LayoutTplDiagramEditPart extends PortletRowLayoutEditPart
 {
     public static final int DIAGRAM_MARGIN = 10;
 
+    public LayoutTplDiagramEditPart()
+    {
+    }
+
     @Override
     protected void configurePanel( Panel panel )
     {
         super.configurePanel( panel );
-
         panel.setBackgroundColor( new Color( null, 10, 10, 10 ) );
     }
 
+    @Override
     protected void createEditPolicies()
     {
-        // disallows the removal of this edit part from its parent
-        installEditPolicy( EditPolicy.COMPONENT_ROLE, new RootComponentEditPolicy() );
-
-        // handles constraint changes (e.g. moving and/or resizing) of model
-        // elements and creation of new model elements
-        installEditPolicy( EditPolicy.LAYOUT_ROLE, new LayoutTplDiagramLayoutEditPolicy() );
     }
 
     @Override
@@ -53,5 +47,4 @@ public class LayoutTplDiagramEditPart extends PortletRowLayoutEditPart
     {
         return DIAGRAM_MARGIN;
     }
-
 }

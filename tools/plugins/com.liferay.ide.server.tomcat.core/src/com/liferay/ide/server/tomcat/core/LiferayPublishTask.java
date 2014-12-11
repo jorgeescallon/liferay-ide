@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -27,12 +27,12 @@ import org.eclipse.wst.server.core.model.PublishOperation;
 
 /**
  * @author Gregory Amerson
+ * @author Simon Jiang
  */
-@SuppressWarnings( "restriction" )
+@SuppressWarnings( { "rawtypes", "restriction", "unchecked" } )
 public class LiferayPublishTask extends PublishTask
 {
 
-    @SuppressWarnings( { "rawtypes", "unchecked" } )
     public PublishOperation[] getTasks( IServer server, int kind, List modules, List kindList )
     {
         if( modules == null )
@@ -40,18 +40,34 @@ public class LiferayPublishTask extends PublishTask
             return null;
         }
 
-        LiferayTomcatServerBehavior tomcatServer =
+        LiferayTomcatServerBehavior liferayServer =
             (LiferayTomcatServerBehavior) server.loadAdapter( LiferayTomcatServerBehavior.class, null );
 
-        List tasks = new ArrayList();
-        int size = modules.size();
+        final List tasks = new ArrayList();
+        final int size = modules.size();
+
         for( int i = 0; i < size; i++ )
         {
-            IModule[] module = (IModule[]) modules.get( i );
-            Integer in = (Integer) kindList.get( i );
-            tasks.add( new LiferayPublishOperation( tomcatServer, kind, module, in.intValue() ) );
+            final IModule[] module = (IModule[]) modules.get( i );
+
+            if( liferayServer.getRedeployModules() != null )
+            {
+                for( IModule[] moduleItem : liferayServer.getRedeployModules() )
+                {
+                    if( moduleItem[0].getId().equals( module[0].getId() ) )
+                    {
+                        int in = (Integer) kindList.get( i );
+                        tasks.add( new LiferayPublishOperation( liferayServer, kind, module, in ) );
+                    }
+                }
+            }
+            else
+            {
+                int in = (Integer) kindList.get( i );
+                tasks.add( new LiferayPublishOperation( liferayServer, kind, module, in ) );
+            }
         }
 
-        return (PublishOperation[]) tasks.toArray( new PublishOperation[tasks.size()] );
+        return (PublishOperation[]) tasks.toArray( new PublishOperation[0] );
     }
 }

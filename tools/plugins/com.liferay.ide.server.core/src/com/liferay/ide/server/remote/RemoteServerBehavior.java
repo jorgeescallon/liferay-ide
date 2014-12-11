@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,30 +16,29 @@
 package com.liferay.ide.server.remote;
 
 import com.liferay.ide.core.ILiferayConstants;
+import com.liferay.ide.core.ILiferayProject;
+import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.remote.APIException;
 import com.liferay.ide.core.util.CoreUtil;
-import com.liferay.ide.core.util.StringPool;
-import com.liferay.ide.sdk.core.ISDKConstants;
-import com.liferay.ide.sdk.core.SDK;
-import com.liferay.ide.sdk.core.SDKUtil;
-import com.liferay.ide.server.core.ILiferayRuntime;
 import com.liferay.ide.server.core.ILiferayServerBehavior;
 import com.liferay.ide.server.core.LiferayServerCore;
 import com.liferay.ide.server.util.LiferayPublishHelper;
 import com.liferay.ide.server.util.ServerUtil;
 import com.liferay.ide.server.util.SocketUtil;
 
-import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
@@ -49,6 +48,7 @@ import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.jdt.launching.IJavaLaunchConfigurationConstants;
 import org.eclipse.osgi.util.NLS;
+import org.eclipse.wst.common.componentcore.internal.util.ComponentUtilities;
 import org.eclipse.wst.server.core.IModule;
 import org.eclipse.wst.server.core.IServer;
 import org.eclipse.wst.server.core.IServerLifecycleListener;
@@ -60,12 +60,15 @@ import org.eclipse.wst.server.core.model.ServerBehaviourDelegate;
 /**
  * @author Greg Amerson
  * @author Tao Tao
+ * @author Simon Jiang
  */
+@SuppressWarnings( "restriction" )
 public class RemoteServerBehavior extends ServerBehaviourDelegate
     implements ILiferayServerBehavior, IServerLifecycleListener
 {
     protected ILaunch currentLaunch;
-    protected IServerManagerConnection remoteConnection;
+    private IServerManagerConnection remoteConnection;
+    private List<IModule[]> redeployModules;
     protected Job remoteServerUpdateJob;
 
     public RemoteServerBehavior()
@@ -124,121 +127,13 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
     @Override
     public IStatus canStart( String launchMode )
     {
-        return LiferayServerCore.createErrorStatus( Msgs.liferayServerInstanceRemote );
+        return LiferayServerCore.error( Msgs.liferayServerInstanceRemote );
     }
 
     @Override
     public IStatus canStop()
     {
         return LiferayServerCore.createWarningStatus( Msgs.stoppingRemoteLiferayServerNotSupported );
-    }
-
-    @Override
-    public void dispose()
-    {
-        super.dispose();
-
-        remoteServerUpdateJob.cancel();
-        remoteServerUpdateJob = null;
-    }
-
-    public int getRemoteServerState( int currentServerState, IProgressMonitor monitor )
-    {
-        try
-        {
-            if( currentServerState == IServer.STATE_STOPPED )
-            {
-                monitor.beginTask( NLS.bind( Msgs.updatingServerState, getServer().getName() ), 100 );
-            }
-
-            Object retval = null;
-
-            IServerManagerConnection remoteConnection = getServerManagerConnection();
-
-            try
-            {
-                retval = remoteConnection.getServerState();
-            }
-            catch( Exception e )
-            {
-                e.printStackTrace();
-            }
-
-            if( retval == null )
-            {
-                return IServer.STATE_UNKNOWN;
-            }
-
-            String serverState = retval.toString();
-
-            if( "STARTED".equals( serverState ) ) //$NON-NLS-1$
-            {
-                return IServer.STATE_STARTED;
-            }
-            else if( "STOPPED".equals( serverState ) ) //$NON-NLS-1$
-            {
-                return IServer.STATE_STOPPED;
-            }
-        }
-        catch( Exception e )
-        {
-            LiferayServerCore.logError( "Could not get server state.", e ); //$NON-NLS-1$
-            return IServer.STATE_UNKNOWN;
-        }
-
-        return IServer.STATE_UNKNOWN;
-    }
-
-    public void redeployModule( IModule[] module )
-    {
-        setModulePublishState( module, IServer.PUBLISH_STATE_FULL );
-
-        IAdaptable info = new IAdaptable()
-        {
-
-            @SuppressWarnings( "rawtypes" )
-            public Object getAdapter( Class adapter )
-            {
-                if( String.class.equals( adapter ) )
-                    return "user"; //$NON-NLS-1$
-                return null;
-            }
-        };
-
-        getServer().publish( IServer.PUBLISH_FULL, null, info, null );
-    }
-
-    public void serverAdded( IServer server )
-    {
-    }
-
-    public void serverChanged( IServer server )
-    {
-    }
-
-    public void serverRemoved( IServer server )
-    {
-        if( server.equals( getServer() ) )
-        {
-            if( currentLaunch != null && !currentLaunch.isTerminated() )
-            {
-                try
-                {
-                    currentLaunch.terminate();
-                }
-                catch( DebugException e )
-                {
-                }
-            }
-        }
-
-        ServerCore.removeServerLifecycleListener( this );
-    }
-
-    @Override
-    public void stop( boolean force )
-    {
-        setServerState( IServer.STATE_STOPPED );
     }
 
     protected Job checkRemoteServerState( IProgressMonitor monitor )
@@ -388,6 +283,86 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
         };
     }
 
+    @Override
+    public void dispose()
+    {
+        super.dispose();
+
+        remoteServerUpdateJob.cancel();
+        remoteServerUpdateJob = null;
+    }
+
+    @Override
+    protected MultiStatus executePublishers(
+        int kind, List<IModule[]> modules, List<Integer> deltaKinds, IProgressMonitor monitor, IAdaptable info )
+        throws CoreException
+    {
+        return super.executePublishers(
+            kind, ( redeployModules == null ) ? modules : redeployModules, deltaKinds, monitor, info );
+    }
+
+    public IPath getDeployedPath( IModule[] module )
+    {
+        return null;
+    }
+
+    protected IRemoteServer getRemoteServer()
+    {
+        return RemoteUtil.getRemoteServer( getServer() );
+    }
+
+    public int getRemoteServerState( int currentServerState, IProgressMonitor monitor )
+    {
+        try
+        {
+            if( currentServerState == IServer.STATE_STOPPED )
+            {
+                monitor.beginTask( NLS.bind( Msgs.updatingServerState, getServer().getName() ), 100 );
+            }
+
+            Object retval = null;
+
+            IServerManagerConnection remoteConnection = getServerManagerConnection();
+
+            try
+            {
+                retval = remoteConnection.getServerState();
+            }
+            catch( Exception e )
+            {
+                e.printStackTrace();
+            }
+
+            if( retval == null )
+            {
+                return IServer.STATE_UNKNOWN;
+            }
+
+            String serverState = retval.toString();
+
+            if( "STARTED".equals( serverState ) ) //$NON-NLS-1$
+            {
+                return IServer.STATE_STARTED;
+            }
+            else if( "STOPPED".equals( serverState ) ) //$NON-NLS-1$
+            {
+                return IServer.STATE_STOPPED;
+            }
+        }
+        catch( Exception e )
+        {
+            LiferayServerCore.logError( "Could not get server state.", e ); //$NON-NLS-1$
+            return IServer.STATE_UNKNOWN;
+        }
+
+        return IServer.STATE_UNKNOWN;
+    }
+
+    protected long getRemoteServerUpdateDelay()
+    {
+        return 5000;
+    }
+
     protected IServerManagerConnection getServerManagerConnection()
     {
         if( remoteConnection == null )
@@ -396,16 +371,6 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
         }
 
         return remoteConnection;
-    }
-
-    protected IRemoteServer getRemoteServer()
-    {
-        return RemoteUtil.getRemoteServer( getServer() );
-    }
-
-    protected long getRemoteServerUpdateDelay()
-    {
-        return 5000;
     }
 
     @Override
@@ -422,7 +387,7 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
     {
         for( IModule m : module )
         {
-            String appName = m.getProject().getName();
+            final String appName = ComponentUtilities.getServerContextRoot( m.getProject() );
 
             try
             {
@@ -511,6 +476,8 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
         super.publishFinish( monitor );
 
         setServerPublishState( IServer.PUBLISH_STATE_NONE );
+
+        this.redeployModules = null;
     }
 
     @Override
@@ -536,10 +503,7 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
         {
             // first check to see if this module is even in the list of applications, if it is then we don't need to
             // actually update it
-            if( !isModuleInstalled( module ) )
-            {
-                modulePublishState = publishModuleFull( module, deltaKind, monitor );
-            }
+            modulePublishState = publishModuleFull( module, deltaKind, monitor );
         }
         else if( kind == IServer.PUBLISH_FULL && deltaKind == REMOVED )
         {
@@ -576,11 +540,20 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
             return publishModuleFull( module, CHANGED, monitor );
         }
 
-        String appName = moduleProject.getName();
+        final String appName = ComponentUtilities.getServerContextRoot( moduleProject );
 
         monitor.subTask( "Creating partial " + moduleProject.getName() + " update archive..." ); //$NON-NLS-1$ //$NON-NLS-2$
 
-        File partialWar = ServerUtil.createPartialWAR( appName + ".war", delta, "liferay", true ); //$NON-NLS-1$ //$NON-NLS-2$
+        final ILiferayProject liferayProject = LiferayCore.create( moduleProject );
+        final IRemoteServerPublisher publisher = liferayProject.adapt( IRemoteServerPublisher.class );
+
+        if ( publisher == null )
+        {
+            setModuleStatus( module, null );
+            throw new CoreException( LiferayServerCore.error( Msgs.publishingModuleProject ) );
+        }
+
+        final IPath warPath = publisher.publishModuleDelta( appName + ".war", delta, "liferay", true );
 
         monitor.worked( 25 );
 
@@ -599,7 +572,7 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
 
         try
         {
-            error = connection.updateApplication( appName, partialWar.getAbsolutePath(), monitor );
+            error = connection.updateApplication( appName, warPath.toOSString(), monitor );
         }
         catch( APIException e )
         {
@@ -610,7 +583,7 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
 
         if( error != null )
         {
-            throw new CoreException( LiferayServerCore.createErrorStatus( error.toString() ) );
+            throw new CoreException( LiferayServerCore.error( error.toString() ) );
         }
 
         monitor.done();
@@ -620,9 +593,9 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
 
     protected int publishModuleFull( IModule[] module, int deltaKind, IProgressMonitor monitor ) throws CoreException
     {
-        if( module == null || module.length != 1 )
+        if( module == null )
         {
-            throw new CoreException( LiferayServerCore.createErrorStatus( "Cannot publish module with length " + //$NON-NLS-1$
+            throw new CoreException( LiferayServerCore.error( "Cannot publish module with length " + //$NON-NLS-1$
                 ( module != null ? module.length : 0 ) ) );
         }
 
@@ -631,65 +604,38 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
             monitor = new NullProgressMonitor();
         }
 
-        IModule publishModule = module[0];
+        final IModule publishModule = module[0];
 
-        IProject moduleProject = publishModule.getProject();
+        final IProject moduleProject = publishModule.getProject();
 
-        IProgressMonitor submon = CoreUtil.newSubMonitor( monitor, 100 );
+        final IProgressMonitor submon = CoreUtil.newSubMonitor( monitor, 100 );
         submon.subTask( "Deploying " + moduleProject.getName() + "  to Liferay..." ); //$NON-NLS-1$ //$NON-NLS-2$
 
-        SDK sdk = SDKUtil.getSDK( moduleProject );
+        final ILiferayProject liferayProject = LiferayCore.create( moduleProject );
+        final IRemoteServerPublisher publisher = liferayProject.adapt( IRemoteServerPublisher.class );
 
-        Map<String, String> properties = new HashMap<String, String>();
-        properties.put( ISDKConstants.PROPERTY_AUTO_DEPLOY_UNPACK_WAR, "false" ); //$NON-NLS-1$
+        if ( publisher == null )
+        {
+            setModuleStatus( module, null );
+            throw new CoreException( LiferayServerCore.error( Msgs.publishingModuleProject ) );
+        }
 
-        IPath deployPath = LiferayServerCore.getTempLocation( "direct-deploy", StringPool.EMPTY ); //$NON-NLS-1$
+        final IPath warPath = publisher.publishModuleFull( monitor );
 
-        final ILiferayRuntime runtime = ServerUtil.getLiferayRuntime( moduleProject );
-
-        final String appServerDeployDirProp =
-            ServerUtil.getAppServerPropertyKey( ISDKConstants.PROPERTY_APP_SERVER_DEPLOY_DIR, runtime );
-
-        properties.put( appServerDeployDirProp, deployPath.toOSString() );
-
-        File warFile = deployPath.append( moduleProject.getName() + ".war" ).toFile(); //$NON-NLS-1$
-        warFile.getParentFile().mkdirs();
-
-        properties.put( ISDKConstants.PROPERTY_PLUGIN_FILE, warFile.getAbsolutePath() );
-
-        submon.worked( 10 ); // 10% complete
+        submon.worked( 25 ); // 25% complete
 
         if( monitor.isCanceled() )
         {
             return IServer.PUBLISH_STATE_FULL;
         }
 
-        submon.subTask( "Deploying " + moduleProject.getName() + "..." ); //$NON-NLS-1$ //$NON-NLS-2$
-
-        Map<String, String> appServerProperties = ServerUtil.configureAppServerProperties( moduleProject );
-
-        IStatus directDeployStatus =
-            sdk.war( moduleProject, properties, true, appServerProperties, new String[] { "-Duser.timezone=GMT" } ); //$NON-NLS-1$
-
-        if( !directDeployStatus.isOK() || ( !warFile.exists() ) )
-        {
-            throw new CoreException( directDeployStatus );
-        }
-
-        submon.worked( 15 ); // 25% complete
-
-        if( monitor.isCanceled() )
-        {
-            return IServer.PUBLISH_STATE_FULL;
-        }
-
-        String appName = moduleProject.getName();
+        final String appName = ComponentUtilities.getServerContextRoot( moduleProject );
 
         IServerManagerConnection remoteConnection = getServerManagerConnection();
 
-        setModuleStatus( module, LiferayServerCore.createInfoStatus( Msgs.installing ) );
+        setModuleStatus( module, LiferayServerCore.info( Msgs.installing ) );
 
-        submon.worked( 15 ); // 50% complete
+        submon.worked( 25 ); // 50% complete
 
         if( monitor.isCanceled() )
         {
@@ -702,14 +648,7 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
 
         try
         {
-            if( remoteConnection.isAppInstalled( appName ) )
-            {
-                error = remoteConnection.updateApplication( appName, warFile.getAbsolutePath(), submon );
-            }
-            else
-            {
-                error = remoteConnection.installApplication( warFile.getAbsolutePath(), appName, submon );
-            }
+            error = remoteConnection.installApplication( warPath.toOSString(), appName, submon );
         }
         catch( Exception ex )
         {
@@ -717,17 +656,24 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
             setModuleState( module, IServer.STATE_UNKNOWN );
             throw new CoreException( LiferayServerCore.createErrorStatus( ex ) );
         }
+        finally
+        {
+            if( warPath.toFile().exists() )
+            {
+                warPath.toFile().delete();
+            }
+        }
 
         if( error != null )
         {
             setModuleStatus( module, null );
             setModuleState( module, IServer.STATE_UNKNOWN );
-            throw new CoreException( LiferayServerCore.createErrorStatus( error.toString() ) );
+            throw new CoreException( LiferayServerCore.error( error.toString() ) );
         }
 
         submon.worked( 40 ); // 90%
 
-        setModuleStatus( module, LiferayServerCore.createInfoStatus( Msgs.starting ) );
+        setModuleStatus( module, LiferayServerCore.info( Msgs.starting ) );
 
         // scriptFile = getScriptFile("publish/startApplicationScript.groovy");
 
@@ -746,6 +692,13 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
         return IServer.PUBLISH_STATE_NONE;
     }
 
+    @SuppressWarnings( "rawtypes" )
+    @Override
+    protected void publishModules( int kind, List modules, List deltaKind2, MultiStatus multi, IProgressMonitor monitor )
+    {
+        super.publishModules( kind, ( redeployModules == null ) ? modules : redeployModules, deltaKind2, multi, monitor );
+    }
+
     @Override
     protected void publishStart( IProgressMonitor monitor ) throws CoreException
     {
@@ -754,15 +707,48 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
         if( state != IServer.STATE_STARTED )
         {
             throw new CoreException(
-                LiferayServerCore.createErrorStatus( Msgs.notPublishRemoteServer ) );
+                LiferayServerCore.error( Msgs.notPublishRemoteServer ) );
+        }
+    }
+
+    @SuppressWarnings( "rawtypes" )
+    public void redeployModule( IModule[] module )
+    {
+        setModulePublishState( module, IServer.PUBLISH_STATE_FULL );
+
+        IAdaptable info = new IAdaptable()
+        {
+            public Object getAdapter( Class adapter )
+            {
+                if( String.class.equals( adapter ) )
+                    return "user"; //$NON-NLS-1$
+                return null;
+            }
+        };
+
+        final List<IModule[]> modules = new ArrayList<IModule[]>();
+        modules.add( module );
+
+        try
+        {
+            redeployModules = modules;
+            publish( IServer.PUBLISH_FULL, modules, null, info );
+        }
+        catch( CoreException e )
+        {
+            LiferayServerCore.logError( "redploying module " + module[0].getName() + " failed.", e );
+        }
+        finally
+        {
+            redeployModules = null;
         }
     }
 
     protected int removeModule( IModule[] module, IProgressMonitor monitor ) throws CoreException
     {
-        if( module == null || module.length != 1 )
+        if( module == null )
         {
-            throw new CoreException( LiferayServerCore.createErrorStatus( "Cannot publish module with length " + //$NON-NLS-1$
+            throw new CoreException( LiferayServerCore.error( "Cannot publish module with length " + //$NON-NLS-1$
                 ( module != null ? module.length : 0 ) ) );
         }
 
@@ -789,9 +775,9 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
 
         monitor.beginTask( NLS.bind( Msgs.undeployingModuleProject, moduleProject.getName() ), 100 );
 
-        String appName = moduleProject.getName();
+        final String appName = ComponentUtilities.getServerContextRoot( moduleProject );
 
-        setModuleStatus( module, LiferayServerCore.createInfoStatus( Msgs.uninstalling ) );
+        setModuleStatus( module, LiferayServerCore.info( Msgs.uninstalling ) );
 
         monitor.subTask( Msgs.gettingRemoteConnection );
 
@@ -809,7 +795,7 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
         {
             error = remoteConnection.uninstallApplication( appName, monitor );
         }
-        catch (APIException e)
+        catch( APIException e )
         {
             error = e.getMessage();
         }
@@ -818,12 +804,42 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
 
         if( error != null )
         {
-            throw new CoreException( LiferayServerCore.createErrorStatus( error.toString() ) );
+            throw new CoreException( LiferayServerCore.error( error.toString() ) );
         }
 
         setModuleStatus( module, null );
 
         return IServer.PUBLISH_STATE_NONE;
+    }
+
+
+    public void serverAdded( IServer server )
+    {
+    }
+
+
+
+    public void serverChanged( IServer server )
+    {
+    }
+
+    public void serverRemoved( IServer server )
+    {
+        if( server.equals( getServer() ) )
+        {
+            if( currentLaunch != null && !currentLaunch.isTerminated() )
+            {
+                try
+                {
+                    currentLaunch.terminate();
+                }
+                catch( DebugException e )
+                {
+                }
+            }
+        }
+
+        ServerCore.removeServerLifecycleListener( this );
     }
 
     protected boolean shouldPublishModuleFull( IModuleResourceDelta[] deltas )
@@ -841,27 +857,28 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
                 }
                 else
                 {
-                    IModuleResource resource = delta.getModuleResource();
+                    final IModuleResource resource = delta.getModuleResource();
+                    final IFile resourceFile = (IFile) resource.getAdapter( IFile.class );
 
-                    if( resource.getName().equals( "web.xml" ) || //$NON-NLS-1$
-                        resource.getName().equals( ILiferayConstants.LIFERAY_PLUGIN_PACKAGE_PROPERTIES_FILE ) )
+                    if( resourceFile != null )
                     {
+                        final ILiferayProject lrproject = LiferayCore.create( resourceFile.getProject() );
 
-                        retval = CoreUtil.isResourceInDocroot( resource );
+                        final IPath docrootPath = lrproject.getDefaultDocrootFolder().getFullPath();
 
-                        if( retval )
+                        if( lrproject.findDocrootResource(
+                                resourceFile.getFullPath().makeRelativeTo( docrootPath ) ) != null )
                         {
-                            break;
-                        }
-                    }
-                    else if( resource.getName().equals( "portlet.xml" ) ) //$NON-NLS-1$
-                    {
-                        // if portlet-custom.xml is used we need to redeploy on this change.
-                        retval = CoreUtil.isResourceInDocroot( resource );
-
-                        if( retval )
-                        {
-                            break;
+                            if( resource.getName().equals( "web.xml" ) ||
+                                resource.getName().equals(
+                                    ILiferayConstants.LIFERAY_PLUGIN_PACKAGE_PROPERTIES_FILE ) )
+                            {
+                                break;
+                            }
+                            else if( resource.getName().equals( "portlet.xml" ) )
+                            {
+                                break;
+                            }
                         }
                     }
                 }
@@ -869,6 +886,12 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
         }
 
         return retval;
+    }
+
+    @Override
+    public void stop( boolean force )
+    {
+        setServerState( IServer.STATE_STOPPED );
     }
 
     protected void terminateLaunch()
@@ -889,7 +912,8 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
 
     protected IStatus updateModuleState( IModule module )
     {
-        String appName = module.getProject().getName();
+
+        final String appName = ComponentUtilities.getServerContextRoot( module.getProject() );
 
         boolean appStarted =false;
 
@@ -942,7 +966,8 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
             {
                 if( CoreUtil.isLiferayProject( module.getProject() ) )
                 {
-                    String appName = module.getProject().getName();
+
+                    final String appName = ComponentUtilities.getServerContextRoot( module.getProject() );
 
                     if( plugins.contains( appName ) )
                     {
@@ -961,6 +986,7 @@ public class RemoteServerBehavior extends ServerBehaviourDelegate
 
     private static class Msgs extends NLS
     {
+
         public static String gettingLiferayConnection;
         public static String gettingRemoteConnection;
         public static String installing;

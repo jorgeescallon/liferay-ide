@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -30,7 +30,6 @@ import org.eclipse.swt.graphics.FontData;
  */
 public class ColumnFigure extends RoundedRectangle
 {
-    protected Font correctedFont = null;
     protected boolean drawText = true;
     protected String text = null;
 
@@ -39,6 +38,88 @@ public class ColumnFigure extends RoundedRectangle
         super();
         setAntialias( SWT.ON );
         // setText("50%");
+    }
+
+    private boolean compareFonts( Font font1, Font font2 )
+    {
+        if( font1 == null || font2 == null )
+        {
+            return false;
+        }
+
+        if( ! font1.getDevice().equals( font2.getDevice() ) )
+        {
+            return false;
+        }
+
+        FontData[] data1 = font1.getFontData();
+        FontData[] data2 = font2.getFontData();
+
+        if( !( data1.length == data2.length ) )
+        {
+            return false;
+        }
+
+        for( int i = 0; i < data1.length; i++ )
+        {
+            if( ! data1[i].equals( data2[i] ) )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    protected void correctFont()
+    {
+        Font initialFont = this.getFont();
+
+        if( initialFont != null && ( !this.getFont().isDisposed() ) && ( !this.getFont().getDevice().isDisposed() ) )
+        {
+            FontData[] fontData = initialFont.getFontData();
+
+            for( int i = 0; i < fontData.length; i++ )
+            {
+                int height = 24;
+                fontData[i].setHeight( height );
+
+                int width = getFontWidth( fontData[i] );
+
+                while( width > getPreferredSize().width() - 1 )
+                {
+                    height--;
+                    fontData[i].setHeight( height );
+                    width = getFontWidth( fontData[i] );
+                }
+            }
+
+            final Font correctedFont = new Font( this.getFont().getDevice(), fontData );
+
+            if( ! compareFonts( initialFont, correctedFont ) )
+            {
+                setFont( correctedFont );
+            }
+            else
+            {
+                correctedFont.dispose();
+            }
+        }
+    }
+
+    protected int getFontWidth( FontData fontData )
+    {
+        int width;
+        Font newFont = new Font( this.getFont().getDevice(), fontData );
+        width = FigureUtilities.getTextExtents( getText(), newFont ).width();
+        newFont.dispose();
+
+        return width;
+    }
+
+    public String getText()
+    {
+        return text;
     }
 
     @Override
@@ -69,67 +150,9 @@ public class ColumnFigure extends RoundedRectangle
         }
     }
 
-    protected void correctFont()
+    public void setDrawText( boolean drawText )
     {
-        Font initialFont = this.getFont();
-
-        if( initialFont != null && ( !this.getFont().isDisposed() ) && ( !this.getFont().getDevice().isDisposed() ) )
-        {
-            FontData[] fontData = initialFont.getFontData();
-
-            for( int i = 0; i < fontData.length; i++ )
-            {
-                int height = 24;
-                fontData[i].setHeight( height );
-
-                int width = getFontWidth( fontData[i] );
-
-                while( width > getPreferredSize().width() - 1 )
-                {
-                    height--;
-                    fontData[i].setHeight( height );
-                    width = getFontWidth( fontData[i] );
-                }
-            }
-
-            Font oldFont = null;
-            if( correctedFont != null && !correctedFont.isDisposed() )
-            {
-                oldFont = correctedFont;
-            }
-
-            correctedFont = new Font( this.getFont().getDevice(), fontData );
-            setFont( correctedFont );
-
-            if( oldFont != null )
-            {
-                oldFont.dispose();
-            }
-        }
-    }
-
-    @Override
-    protected void finalize() throws Throwable
-    {
-        if( correctedFont != null && !( correctedFont.isDisposed() ) )
-        {
-            correctedFont.dispose();
-        }
-    }
-
-    protected int getFontWidth( FontData fontData )
-    {
-        int width;
-        Font newFont = new Font( this.getFont().getDevice(), fontData );
-        width = FigureUtilities.getTextExtents( getText(), newFont ).width();
-        newFont.dispose();
-
-        return width;
-    }
-
-    public String getText()
-    {
-        return text;
+        this.drawText = drawText;
     }
 
     public void setText( String text )
@@ -141,10 +164,4 @@ public class ColumnFigure extends RoundedRectangle
     {
         return drawText;
     }
-
-    public void setDrawText( boolean drawText )
-    {
-        this.drawText = drawText;
-    }
-
 }

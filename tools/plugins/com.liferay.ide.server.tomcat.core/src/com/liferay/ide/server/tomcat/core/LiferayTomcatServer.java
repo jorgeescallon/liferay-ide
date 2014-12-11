@@ -12,6 +12,7 @@
 
 package com.liferay.ide.server.tomcat.core;
 
+import com.liferay.ide.core.ILiferayConstants;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.project.core.util.ProjectUtil;
@@ -36,9 +37,11 @@ import org.eclipse.osgi.util.NLS;
 import org.eclipse.wst.server.core.IModule;
 import org.eclipse.wst.server.core.IRuntime;
 import org.eclipse.wst.server.core.ServerUtil;
+import org.osgi.framework.Version;
 
 /**
  * @author Gregory Amerson
+ * @author Terry Jia
  */
 @SuppressWarnings( "restriction" )
 public class LiferayTomcatServer extends TomcatServer
@@ -68,6 +71,30 @@ public class LiferayTomcatServer extends TomcatServer
     public String getAutoDeployInterval()
     {
         return getAttribute( PROPERTY_AUTO_DEPLOY_INTERVAL, ILiferayTomcatConstants.DEFAULT_AUTO_DEPLOY_INTERVAL );
+    }
+
+    public int getDefaultServerMode()
+    {
+        int defaultServerMode = ILiferayTomcatConstants.STANDARD_SERVER_MODE;
+
+        try
+        {
+            IPath location = getServer().getRuntime().getLocation();
+
+            String version = LiferayTomcatUtil.getVersion( location, LiferayTomcatUtil.getPortalDir( location ) );
+
+            Version portalVersion = Version.parseVersion( version );
+
+            if( CoreUtil.compareVersions( portalVersion, ILiferayConstants.V620 ) < 0 )
+            {
+                defaultServerMode = ILiferayTomcatConstants.DEVELOPMENT_SERVER_MODE;
+            }
+        }
+        catch( Exception e )
+        {
+        }
+
+        return defaultServerMode;
     }
 
     public String getExternalProperties()
@@ -125,9 +152,19 @@ public class LiferayTomcatServer extends TomcatServer
         }
     }
 
+    public String getPassword()
+    {
+        return getAttribute( ATTR_PASSWORD, DEFAULT_PASSWORD );
+    }
+
     public ILiferayTomcatConfiguration getLiferayTomcatConfiguration() throws CoreException
     {
         return (ILiferayTomcatConfiguration) getTomcatConfiguration();
+    }
+
+    public int getServerMode()
+    {
+        return getAttribute( PROPERTY_SERVER_MODE, getDefaultServerMode() );
     }
 
     @Override
@@ -156,7 +193,7 @@ public class LiferayTomcatServer extends TomcatServer
             {
                 configuration = new LiferayTomcat60Configuration( folder );
             }
-            else if( id.endsWith( "70" ) ) //$NON-NLS-1$
+            else if( id.endsWith( "70" ) || id.endsWith( "7062" ) ) //$NON-NLS-1$ //$NON-NLS-2$
             {
                 configuration = new LiferayTomcat70Configuration( folder );
             }
@@ -183,6 +220,11 @@ public class LiferayTomcatServer extends TomcatServer
             ( (ILiferayTomcatHandler) handler ).setCurrentServer( getServer() );
         }
         return handler;
+    }
+
+    public String getUsername()
+    {
+        return getAttribute( ATTR_USERNAME, DEFAULT_USERNAME );
     }
 
     public String getUserTimezone()
@@ -220,7 +262,7 @@ public class LiferayTomcatServer extends TomcatServer
         {
             configuration = new LiferayTomcat60Configuration( folder );
         }
-        else if( id.endsWith( "70" ) ) //$NON-NLS-1$
+        else if( id.endsWith( "70" ) || id.endsWith( "7062" ) ) //$NON-NLS-1$ //$NON-NLS-2$
         {
             configuration = new LiferayTomcat70Configuration( folder );
         }
@@ -356,6 +398,21 @@ public class LiferayTomcatServer extends TomcatServer
     public void setMemoryArgs( String memoryArgs )
     {
         setAttribute( PROPERTY_MEMORY_ARGS, memoryArgs );
+    }
+
+    public void setPassword( String password )
+    {
+        setAttribute( ATTR_PASSWORD, password );
+    }
+
+    public void setServerMode( int serverMode )
+    {
+        setAttribute( PROPERTY_SERVER_MODE, serverMode );
+    }
+
+    public void setUsername( String username )
+    {
+        setAttribute( ATTR_USERNAME, username );
     }
 
     public void setUserTimezone( String userTimezone )

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,16 +15,18 @@
 
 package com.liferay.ide.layouttpl.ui.wizard;
 
+import com.liferay.ide.core.ILiferayConstants;
+import com.liferay.ide.core.ILiferayPortal;
+import com.liferay.ide.core.ILiferayProject;
+import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.StringPool;
-import com.liferay.ide.layouttpl.core.model.LayoutTplDiagramElement;
+import com.liferay.ide.layouttpl.core.model.LayoutTplElement;
 import com.liferay.ide.layouttpl.core.operation.INewLayoutTplDataModelProperties;
 import com.liferay.ide.layouttpl.core.operation.LayoutTplDescriptorHelper;
 import com.liferay.ide.layouttpl.core.util.LayoutTplUtil;
 import com.liferay.ide.layouttpl.ui.LayoutTplUI;
-import com.liferay.ide.layouttpl.ui.model.LayoutTplDiagram;
-import com.liferay.ide.layouttpl.ui.model.PortletColumn;
-import com.liferay.ide.layouttpl.ui.model.PortletLayout;
+import com.liferay.ide.layouttpl.ui.util.LayoutTemplatesFactory;
 import com.liferay.ide.project.core.util.ProjectUtil;
 import com.liferay.ide.project.ui.wizard.LiferayDataModelOperation;
 
@@ -44,10 +46,12 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jface.text.templates.TemplateContextType;
 import org.eclipse.jface.text.templates.persistence.TemplateStore;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
+import org.osgi.framework.Version;
 
 /**
  * @author Gregory Amerson
  * @author Cindy Li
+ * @author Kuo Zhang
  */
 @SuppressWarnings( "restriction" )
 public class AddLayoutTplOperation extends LiferayDataModelOperation implements INewLayoutTplDataModelProperties
@@ -65,32 +69,36 @@ public class AddLayoutTplOperation extends LiferayDataModelOperation implements 
 
         IDataModel dm = getDataModel();
 
-        LayoutTplDiagram diagramModel = createLayoutTplDigram( dm );
+        String diagramClassName = dm.getStringProperty( LAYOUT_TEMPLATE_ID );
+        LayoutTplElement diagramModel = createLayoutTplDigram( dm, isBootstrapStyle(), diagramClassName );
 
         try
         {
-            String templateFile = getDataModel().getStringProperty( LAYOUT_TEMPLATE_FILE );
+            IFile templateFile = null;
 
-            IFile templateFileValue = null;
-            if( !CoreUtil.isNullOrEmpty( templateFile ) )
+            String templateFileName = getDataModel().getStringProperty( LAYOUT_TEMPLATE_FILE );
+
+            if( !CoreUtil.isNullOrEmpty( templateFileName ) )
             {
-                templateFileValue = createTemplateFile( templateFile, diagramModel );
+                templateFile = createTemplateFile( templateFileName, diagramModel );
             }
 
-            getDataModel().setProperty( LAYOUT_TPL_FILE_CREATED, templateFileValue );
+            getDataModel().setProperty( LAYOUT_TPL_FILE_CREATED, templateFile );
 
-            String wapTemplateFile = getDataModel().getStringProperty( LAYOUT_WAP_TEMPLATE_FILE );
+            String wapTemplateFileName = getDataModel().getStringProperty( LAYOUT_WAP_TEMPLATE_FILE );
 
-            if( !CoreUtil.isNullOrEmpty( wapTemplateFile ) )
+            diagramModel.setClassName( diagramClassName + ".wap" );
+
+            if( !CoreUtil.isNullOrEmpty( wapTemplateFileName ) )
             {
-                createTemplateFile( wapTemplateFile, diagramModel );
+                createTemplateFile( wapTemplateFileName, diagramModel );
             }
 
-            String thumbnailFile = getDataModel().getStringProperty( LAYOUT_THUMBNAIL_FILE );
+            String thumbnailFileName = getDataModel().getStringProperty( LAYOUT_THUMBNAIL_FILE );
 
-            if( !CoreUtil.isNullOrEmpty( thumbnailFile ) )
+            if( !CoreUtil.isNullOrEmpty( thumbnailFileName ) )
             {
-                createThumbnailFile( thumbnailFile, diagramModel );
+                createThumbnailFile( thumbnailFileName );
             }
         }
         catch( CoreException ex )
@@ -110,154 +118,95 @@ public class AddLayoutTplOperation extends LiferayDataModelOperation implements 
         return retval;
     }
 
-    protected void createThumbnailFile( String thumbnailFile, LayoutTplDiagram diagramModel ) throws CoreException,
-        IOException
+    protected void createThumbnailFile( String thumbnailFileName )
+        throws CoreException, IOException
     {
         IFolder defaultDocroot = CoreUtil.getDefaultDocrootFolder( getTargetProject() );
-        IFile thumbnailFileValue = defaultDocroot.getFile( thumbnailFile );
+        IFile thumbnailFile = defaultDocroot.getFile( thumbnailFileName );
         URL iconFileURL = LayoutTplUI.getDefault().getBundle().getEntry( "/icons/blank_columns.png" ); //$NON-NLS-1$
 
-        CoreUtil.prepareFolder( (IFolder) thumbnailFileValue.getParent() );
+        CoreUtil.prepareFolder( (IFolder) thumbnailFile.getParent() );
 
-        if( thumbnailFileValue.exists() )
+        if( thumbnailFile.exists() )
         {
-            thumbnailFileValue.setContents( iconFileURL.openStream(), IResource.FORCE, null );
+            thumbnailFile.setContents( iconFileURL.openStream(), IResource.FORCE, null );
         }
         else
         {
-            thumbnailFileValue.create( iconFileURL.openStream(), true, null );
+            thumbnailFile.create( iconFileURL.openStream(), true, null );
         }
     }
 
-    protected IFile createTemplateFile( String templateFile, LayoutTplDiagram diagramModel ) throws CoreException
+    protected IFile createTemplateFile( String templateFileName, LayoutTplElement element ) throws CoreException
     {
         IFolder defaultDocroot = CoreUtil.getDefaultDocrootFolder( getTargetProject() );
-        IFile templateFileValue = defaultDocroot.getFile( templateFile );
-        CoreUtil.prepareFolder( (IFolder) templateFileValue.getParent() );
+        IFile templateFile = defaultDocroot.getFile( templateFileName );
 
-        if( diagramModel != null )
+        if( element != null )
         {
-            LayoutTplUtil.saveToFile( (LayoutTplDiagramElement)diagramModel, templateFileValue, null );
+            LayoutTplUtil.saveToFile( element, templateFile, null );
         }
         else
         {
             ByteArrayInputStream input = new ByteArrayInputStream( StringPool.EMPTY.getBytes() );
 
-            if( templateFileValue.exists() )
+            if( templateFile.exists() )
             {
-                templateFileValue.setContents( input, IResource.FORCE, null );
+                templateFile.setContents( input, IResource.FORCE, null );
             }
             else
             {
-                templateFileValue.create( input, true, null );
+                templateFile.create( input, true, null );
             }
         }
 
-        return templateFileValue;
+        return templateFile;
     }
 
-    protected LayoutTplDiagram createLayoutTplDigram( IDataModel dm )
+    protected LayoutTplElement createLayoutTplDigram( IDataModel dm, boolean isBootstrapStyle, String className )
     {
-        LayoutTplDiagram diagram = new LayoutTplDiagram();
+        LayoutTplElement layoutTpl = LayoutTplElement.TYPE.instantiate();
+        layoutTpl.setBootstrapStyle( isBootstrapStyle );
+        layoutTpl.setClassName( className );
 
-        if( dm.getBooleanProperty( LAYOUT_IMAGE_BLANK_COLUMN ) )
+        if( dm.getBooleanProperty( LAYOUT_IMAGE_1_COLUMN ) )
         {
-            diagram = null;
-        }
-        else if( dm.getBooleanProperty( LAYOUT_IMAGE_1_COLUMN ) )
-        {
-            PortletLayout row = new PortletLayout();
-            row.addColumn( new PortletColumn( 100 ), 0 );
-            diagram.addRow( row );
+            LayoutTemplatesFactory.add_Layout_1( layoutTpl );
         }
         else if( dm.getBooleanProperty( LAYOUT_IMAGE_1_2_I_COLUMN ) )
         {
-            PortletLayout row = new PortletLayout();
-            row.addColumn( new PortletColumn( 100 ), 0 );
-
-            PortletLayout row2 = new PortletLayout();
-            row2.addColumn( new PortletColumn( 70 ), 0 );
-            row2.addColumn( new PortletColumn( 30 ), 0 );
-
-            diagram.addRow( row );
-            diagram.addRow( row2 );
+            LayoutTemplatesFactory.add_Layout_1_2_I( layoutTpl );
         }
         else if( dm.getBooleanProperty( LAYOUT_IMAGE_1_2_II_COLUMN ) )
         {
-            PortletLayout row = new PortletLayout();
-            row.addColumn( new PortletColumn( 100 ), 0 );
-
-            PortletLayout row2 = new PortletLayout();
-            row2.addColumn( new PortletColumn( 30 ), 0 );
-            row2.addColumn( new PortletColumn( 70 ), 0 );
-
-            diagram.addRow( row );
-            diagram.addRow( row2 );
+            LayoutTemplatesFactory.add_Layout_1_2_II( layoutTpl );
         }
         else if( dm.getBooleanProperty( LAYOUT_IMAGE_1_2_1_COLUMN ) )
         {
-            PortletLayout row = new PortletLayout();
-            row.addColumn( new PortletColumn( 100 ), 0 );
-
-            PortletLayout row2 = new PortletLayout();
-            row2.addColumn( new PortletColumn( 50 ), 0 );
-            row2.addColumn( new PortletColumn( 50 ), 0 );
-
-            PortletLayout row3 = new PortletLayout();
-            row3.addColumn( new PortletColumn( 100 ), 0 );
-
-            diagram.addRow( row );
-            diagram.addRow( row2 );
-            diagram.addRow( row3 );
+            LayoutTemplatesFactory.add_Layout_1_2_1( layoutTpl );
         }
         else if( dm.getBooleanProperty( LAYOUT_IMAGE_2_I_COLUMN ) )
         {
-            PortletLayout row = new PortletLayout();
-            row.addColumn( new PortletColumn( 50 ), 0 );
-            row.addColumn( new PortletColumn( 50 ), 0 );
-
-            diagram.addRow( row );
+            LayoutTemplatesFactory.add_Layout_2_I( layoutTpl );
         }
         else if( dm.getBooleanProperty( LAYOUT_IMAGE_2_II_COLUMN ) )
         {
-            PortletLayout row = new PortletLayout();
-            row.addColumn( new PortletColumn( 70 ), 0 );
-            row.addColumn( new PortletColumn( 30 ), 0 );
-
-            diagram.addRow( row );
+            LayoutTemplatesFactory.add_Layout_2_II( layoutTpl );
         }
         else if( dm.getBooleanProperty( LAYOUT_IMAGE_2_III_COLUMN ) )
         {
-            PortletLayout row = new PortletLayout();
-            row.addColumn( new PortletColumn( 30 ), 0 );
-            row.addColumn( new PortletColumn( 70 ), 0 );
-
-            diagram.addRow( row );
+            LayoutTemplatesFactory.add_Layout_2_III( layoutTpl );
         }
         else if( dm.getBooleanProperty( LAYOUT_IMAGE_2_2_COLUMN ) )
         {
-            PortletLayout row = new PortletLayout();
-            row.addColumn( new PortletColumn( 30 ), 0 );
-            row.addColumn( new PortletColumn( 70 ), 0 );
-
-            PortletLayout row2 = new PortletLayout();
-            row2.addColumn( new PortletColumn( 70 ), 0 );
-            row2.addColumn( new PortletColumn( 30 ), 0 );
-
-            diagram.addRow( row );
-            diagram.addRow( row2 );
+            LayoutTemplatesFactory.add_Layout_2_2( layoutTpl );
         }
         else if( dm.getBooleanProperty( LAYOUT_IMAGE_3_COLUMN ) )
         {
-            PortletLayout row = new PortletLayout();
-            row.addColumn( new PortletColumn( 33 ), 0 );
-            row.addColumn( new PortletColumn( 33 ), 0 );
-            row.addColumn( new PortletColumn( 33 ), 0 );
-
-            diagram.addRow( row );
+            LayoutTemplatesFactory.add_Layout_3( layoutTpl );
         }
 
-        return diagram;
+        return layoutTpl;
     }
 
     public IProject getTargetProject()
@@ -265,6 +214,21 @@ public class AddLayoutTplOperation extends LiferayDataModelOperation implements 
         String projectName = model.getStringProperty( PROJECT_NAME );
 
         return ProjectUtil.getProject( projectName );
+    }
+
+    private boolean isBootstrapStyle()
+    {
+        final ILiferayProject lrproject = LiferayCore.create( getTargetProject() );
+        final ILiferayPortal portal = lrproject.adapt( ILiferayPortal.class );
+
+        if( portal != null )
+        {
+            final Version version = new Version( portal.getVersion() );
+
+            return CoreUtil.compareVersions( version, ILiferayConstants.V620 ) >= 0 ;
+        }
+
+        return true;
     }
 
 }

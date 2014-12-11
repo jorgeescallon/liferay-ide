@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,12 +15,15 @@
 
 package com.liferay.ide.hook.core.operation;
 
+import com.liferay.ide.core.util.StringPool;
+
 import org.eclipse.jst.j2ee.internal.common.operations.INewJavaClassDataModelProperties;
 import org.eclipse.jst.j2ee.internal.common.operations.NewJavaClassDataModelProvider;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
 
 /**
  * @author Greg Amerson
+ * @author Simon Jiang
  */
 @SuppressWarnings( "restriction" )
 public class NewEventActionClassDataModelProvider extends NewJavaClassDataModelProvider
@@ -47,6 +50,11 @@ public class NewEventActionClassDataModelProvider extends NewJavaClassDataModelP
         else if( JAVA_PACKAGE.equals( propertyName ) )
         {
             int lastDot = this.qualifiedClassname.lastIndexOf( '.' );
+
+            if( lastDot == -1 )
+            {
+                return StringPool.EMPTY;
+            }
 
             return this.qualifiedClassname.substring( 0, lastDot );
         }

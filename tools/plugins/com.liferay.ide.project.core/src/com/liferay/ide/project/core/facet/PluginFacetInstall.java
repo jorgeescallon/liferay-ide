@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,11 +15,9 @@
 
 package com.liferay.ide.project.core.facet;
 
-import com.liferay.ide.core.ILiferayProject;
-import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.FileListing;
-import com.liferay.ide.project.core.LiferayProjectCore;
+import com.liferay.ide.project.core.ProjectCore;
 import com.liferay.ide.sdk.core.ISDKConstants;
 import com.liferay.ide.sdk.core.SDK;
 import com.liferay.ide.sdk.core.SDKManager;
@@ -100,7 +98,7 @@ public abstract class PluginFacetInstall implements IDelegate, IPluginProjectDat
         }
         catch( CoreException e )
         {
-            LiferayProjectCore.logError( "Unable to create link", e ); //$NON-NLS-1$
+            ProjectCore.logError( "Unable to create link", e ); //$NON-NLS-1$
         }
 
         try
@@ -110,7 +108,7 @@ public abstract class PluginFacetInstall implements IDelegate, IPluginProjectDat
         }
         catch( JavaModelException e )
         {
-            LiferayProjectCore.logError( "Unable to set java-ouput-path", e ); //$NON-NLS-1$
+            ProjectCore.logError( "Unable to set java-ouput-path", e ); //$NON-NLS-1$
         }
     }
 
@@ -168,7 +166,6 @@ public abstract class PluginFacetInstall implements IDelegate, IPluginProjectDat
         return false;
     }
 
-    @SuppressWarnings( "deprecation" )
     public void execute( IProject project, IProjectFacetVersion fv, Object config, IProgressMonitor monitor )
         throws CoreException
     {
@@ -187,7 +184,6 @@ public abstract class PluginFacetInstall implements IDelegate, IPluginProjectDat
         // IDE-195
         // If the user has the plugins sdk in the workspace, trying to write to the P/foo-portlet/.settings/ will find
         // the file first in the the plugins-sdk that is in the workspace and will fail to find the file.
-        // lets do a research
 
         try
         {
@@ -196,7 +192,7 @@ public abstract class PluginFacetInstall implements IDelegate, IPluginProjectDat
             final IWorkspace ws = ResourcesPlugin.getWorkspace();
             final IWorkspaceRoot wsroot = ws.getRoot();
             final IPath path = new Path( file.getAbsolutePath() );
-            final IFile[] wsFiles = wsroot.findFilesForLocation( path );
+            final IFile[] wsFiles = wsroot.findFilesForLocationURI( path.toFile().toURI() );
             if( !CoreUtil.isNullOrEmpty( wsFiles ) )
             {
                 for( IFile wsFile : wsFiles )
@@ -270,18 +266,6 @@ public abstract class PluginFacetInstall implements IDelegate, IPluginProjectDat
     protected IFacetedProjectWorkingCopy getFacetedProject()
     {
         return (IFacetedProjectWorkingCopy) this.model.getProperty( IFacetDataModelProperties.FACETED_PROJECT_WORKING_COPY );
-    }
-
-    protected IPath getPortalDir()
-    {
-        final ILiferayProject liferayProject = LiferayCore.create( getFacetedProject().getProject() );
-
-        if( liferayProject != null )
-        {
-            return liferayProject.getAppServerPortalDir();
-        }
-
-        return null;
     }
 
     protected String getRuntimeLocation()
@@ -368,29 +352,6 @@ public abstract class PluginFacetInstall implements IDelegate, IPluginProjectDat
         libraryDelegate.execute( monitor );
     }
 
-    protected void installThemeTemplate() throws CoreException
-    {
-        // get the template zip for portlets and extract into the project
-        SDK sdk = getSDK();
-        String themeName = this.masterModel.getStringProperty( THEME_NAME );
-        String displayName = this.masterModel.getStringProperty( DISPLAY_NAME );
-        IPath newThemePath = sdk.createNewThemeProject( themeName, displayName );
-
-        processNewFiles( newThemePath.append( themeName + ISDKConstants.THEME_PLUGIN_PROJECT_SUFFIX ) );
-
-        // cleanup portlet files
-        newThemePath.toFile().delete();
-
-        try
-        {
-            this.project.refreshLocal( IResource.DEPTH_INFINITE, monitor );
-        }
-        catch( Exception e )
-        {
-            LiferayProjectCore.logError( e );
-        }
-    }
-
     protected boolean isProjectInSDK()
     {
         return masterModel.getBooleanProperty( LIFERAY_USE_SDK_LOCATION );
@@ -410,13 +371,13 @@ public abstract class PluginFacetInstall implements IDelegate, IPluginProjectDat
                 }
                 catch( Exception e )
                 {
-                    LiferayProjectCore.logError( e );
+                    ProjectCore.logError( e );
                 }
             }
         }
         catch( FileNotFoundException e1 )
         {
-            throw new CoreException( LiferayProjectCore.createErrorStatus( e1 ) );
+            throw new CoreException( ProjectCore.createErrorStatus( e1 ) );
         }
     }
 

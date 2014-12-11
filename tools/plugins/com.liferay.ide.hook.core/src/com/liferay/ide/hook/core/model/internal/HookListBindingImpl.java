@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -20,17 +20,17 @@ package com.liferay.ide.hook.core.model.internal;
 import com.liferay.ide.hook.core.model.Hook;
 
 import org.eclipse.core.resources.IProject;
-import org.eclipse.sapphire.modeling.LayeredListBindingImpl;
+import org.eclipse.sapphire.LayeredListPropertyBinding;
 
 /**
  * @author Gregory Amerson
  */
-public abstract class HookListBindingImpl extends LayeredListBindingImpl
+public abstract class HookListBindingImpl extends LayeredListPropertyBinding
 {
 
     protected Hook hook()
     {
-        return this.element().nearest( Hook.class );
+        return this.property().nearest( Hook.class );
     }
 
     protected IProject project()

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,12 +16,14 @@ package com.liferay.ide.project.core.util;
 
 
 import com.liferay.ide.core.util.StringPool;
+import com.liferay.ide.project.core.descriptor.LiferayDescriptorHelper;
 
 import java.text.MessageFormat;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.eclipse.core.resources.IProject;
+import org.eclipse.sapphire.modeling.xml.RootXmlResource;
 import org.eclipse.sapphire.modeling.xml.StandardRootElementController;
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentType;
@@ -125,7 +127,7 @@ public class VersionedDTDRootElementController extends StandardRootElementContro
         {
             final IProject project = this.resource().adapt( IProject.class );
 
-            final String defaultVersion = new LiferayDescriptorHelper( project ).getDescriptorVersion();
+            final String defaultVersion = LiferayDescriptorHelper.getDescriptorVersion( project );
 
             DocumentType existingDocType = getDocument().getDoctype();
 
@@ -149,7 +151,8 @@ public class VersionedDTDRootElementController extends StandardRootElementContro
 
     private Document getDocument()
     {
-        return this.resource().root().getDomDocument();
+        RootXmlResource rootXmlResource = (RootXmlResource) this.resource().root();
+        return rootXmlResource.getDomDocument();
     }
 
     @Override

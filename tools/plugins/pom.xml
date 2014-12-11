@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -23,7 +23,7 @@
     <parent>
         <groupId>com.liferay.ide.tools</groupId>
         <artifactId>tools</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>3.0.0-SNAPSHOT</version>
     </parent>
 
     <groupId>com.liferay.ide.tools.plugins</groupId>
@@ -39,25 +39,22 @@
         <module>com.liferay.ide.layouttpl.core</module>
         <module>com.liferay.ide.layouttpl.ui</module>
         <module>com.liferay.ide.portlet.core</module>
-        <module>com.liferay.ide.portlet.jsf.core</module>
-        <module>com.liferay.ide.portlet.jsf.ui</module>
         <module>com.liferay.ide.portlet.ui</module>
         <module>com.liferay.ide.portlet.vaadin.core</module>
         <module>com.liferay.ide.portlet.vaadin.ui</module>
         <module>com.liferay.ide.project.core</module>
         <module>com.liferay.ide.project.ui</module>
-		<module>com.liferay.ide.sdk.core</module>
+        <module>com.liferay.ide.sdk.core</module>
         <module>com.liferay.ide.sdk.ui</module>
         <module>com.liferay.ide.server.core</module>
-		<module>com.liferay.ide.server.tomcat.core</module>
-		<module>com.liferay.ide.server.tomcat.ui</module>
+        <module>com.liferay.ide.server.tomcat.core</module>
+        <module>com.liferay.ide.server.tomcat.ui</module>
         <module>com.liferay.ide.server.ui</module>
         <module>com.liferay.ide.service.core</module>
         <module>com.liferay.ide.service.ui</module>
-        <module>com.liferay.ide.taglib.ui</module>
         <module>com.liferay.ide.theme.core</module>
         <module>com.liferay.ide.theme.ui</module>
-        <module>com.liferay.ide.tools.branding</module>        
+        <module>com.liferay.ide.ui.snippets</module>
+        <module>com.liferay.ide.xml.search.ui</module>
     </modules>
 </project>
-	

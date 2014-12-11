@@ -1,19 +1,14 @@
-/*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+/******************************************************************************
+ * Copyright (c) 2010 Oracle
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
  *
- * This library is free software; you can redistribute it and/or modify it under
- * the terms of the GNU Lesser General Public License as published by the Free
- * Software Foundation; either version 2.1 of the License, or (at your option)
- * any later version.
+ * Original file was copied from
+ * org.eclipse.wst.common.project.facet.core.util.internal.FileUtil
  *
- * This library is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
- * details.
- *
- * Contributors:
- * 		Gregory Amerson - initial implementation and ongoing maintenance
- *******************************************************************************/
+ ******************************************************************************/
 
 package com.liferay.ide.core.util;
 
@@ -26,22 +21,30 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
+import org.eclipse.core.resources.IContainer;
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspace;
+import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.osgi.util.NLS;
@@ -55,6 +58,8 @@ import org.xml.sax.ErrorHandler;
  */
 public class FileUtil
 {
+
+
 
     public static void clearContents( File versionFile )
     {
@@ -70,6 +75,32 @@ public class FileUtil
             {
                 ex.printStackTrace();
             }
+        }
+    }
+
+    public static void copyFileToIFolder( File file, IFolder folder, IProgressMonitor monitor ) throws CoreException
+    {
+        final IFile iFile = folder.getFile( file.getName() );
+
+        try
+        {
+            final FileInputStream input = new FileInputStream( file );
+
+            if( iFile.exists() )
+            {
+                iFile.setContents( input, true, true, monitor );
+            }
+            else
+            {
+                iFile.create( input, true, monitor );
+            }
+
+            input.close();
+        }
+        catch( Exception e )
+        {
+            throw new CoreException( LiferayCore.createErrorStatus(
+                "Could not copy file to folder " + file.getName(), e ) );
         }
     }
 
@@ -165,6 +196,82 @@ public class FileUtil
             }
         }
 
+    }
+
+    public static IContainer getWorkspaceContainer( final File f )
+    {
+        final IWorkspace ws = ResourcesPlugin.getWorkspace();
+        final IWorkspaceRoot wsroot = ws.getRoot();
+        final IPath path = new Path( f.getAbsolutePath() );
+
+        final IContainer[] wsContainers = wsroot.findContainersForLocationURI( path.toFile().toURI() );
+
+        if( wsContainers.length > 0 )
+        {
+            return wsContainers[ 0 ];
+        }
+
+        return null;
+    }
+
+    public static IFile getWorkspaceFile( final File f, String expectedProjectName )
+    {
+        final IWorkspace ws = ResourcesPlugin.getWorkspace();
+        final IWorkspaceRoot wsroot = ws.getRoot();
+        final IPath path = new Path( f.getAbsolutePath() );
+
+        final IFile[] wsFiles = wsroot.findFilesForLocationURI( path.toFile().toURI() );
+
+        if( wsFiles.length > 0 )
+        {
+            for( IFile wsFile : wsFiles )
+            {
+                if( wsFile.getProject().getName().equals( expectedProjectName ) )
+                {
+                    return wsFile;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public static void mkdirs( final File f ) throws CoreException
+    {
+        if( f.exists() )
+        {
+            if( f.isFile() )
+            {
+                final String msg = NLS.bind( Msgs.locationIsFile, f.getAbsolutePath() );
+
+                throw new CoreException( LiferayCore.createErrorStatus( msg ) );
+            }
+        }
+        else
+        {
+            mkdirs( f.getParentFile() );
+
+            final IContainer wsContainer = getWorkspaceContainer( f );
+
+            if( wsContainer != null )
+            {
+                // Should be a folder...
+
+                final IFolder iFolder = (IFolder) wsContainer;
+                iFolder.create( true, true, null );
+            }
+            else
+            {
+                final boolean isSuccessful = f.mkdir();
+
+                if( !isSuccessful )
+                {
+                    final String msg = NLS.bind( Msgs.failedToCreateDirectory, f.getAbsolutePath() );
+
+                    throw new CoreException( LiferayCore.createErrorStatus( msg ) );
+                }
+            }
+        }
     }
 
     public static String readContents( File file )
@@ -368,6 +475,35 @@ public class FileUtil
         }
     }
 
+    public static boolean searchAndReplace( File file, String search, String replace ) throws FileNotFoundException, IOException
+    {
+        boolean replaced = false;
+
+        if( file.exists() )
+        {
+            final String searchContents = CoreUtil.readStreamToString( new FileInputStream( file ) );
+
+            final String replaceContents = searchContents.replaceAll( search, replace );
+
+            replaced = ! searchContents.equals( replaceContents );
+
+            CoreUtil.writeStreamFromString( replaceContents, new FileOutputStream( file ) );
+        }
+
+        return replaced;
+    }
+
+    public static void validateEdit( final IFile... files ) throws CoreException
+    {
+        final IWorkspace ws = ResourcesPlugin.getWorkspace();
+        final IStatus st = ws.validateEdit( files, IWorkspace.VALIDATE_PROMPT );
+
+        if( st.getSeverity() == IStatus.ERROR )
+        {
+            throw new CoreException( st );
+        }
+    }
+
     public static String validateNewFolder( IFolder folder, String folderValue )
     {
         if( folder == null || folderValue == null )
@@ -401,6 +537,99 @@ public class FileUtil
         }
 
         return null;
+    }
+
+    public static void writeFile( final File f, final byte[] contents, final String expectedProjectName ) throws CoreException
+    {
+        writeFile( f, new ByteArrayInputStream( contents ), expectedProjectName );
+    }
+
+    public static void writeFile( final File f, final InputStream contents, final String expectedProjectName ) throws CoreException
+    {
+        if( f.exists() )
+        {
+            if( f.isDirectory() )
+            {
+                final String msg = NLS.bind( Msgs.locationIsDirectory, f.getAbsolutePath() );
+
+                throw new CoreException( LiferayCore.createErrorStatus( msg ) );
+            }
+        }
+        else
+        {
+            mkdirs( f.getParentFile() );
+        }
+
+        final IFile wsfile = getWorkspaceFile( f, expectedProjectName );
+
+        if( wsfile != null )
+        {
+            validateEdit( new IFile[] { wsfile } );
+
+            if( wsfile.exists() )
+            {
+                wsfile.setContents( contents, true, false, null );
+            }
+            else
+            {
+                wsfile.create( contents, true, null );
+            }
+        }
+        else
+        {
+            if( f.exists() && !f.canWrite() )
+            {
+                final String msg = NLS.bind( Msgs.cannotWriteFile, f.getAbsolutePath() );
+
+                throw new CoreException( LiferayCore.createErrorStatus( msg ) );
+            }
+
+            final byte[] buffer = new byte[1024];
+            FileOutputStream out = null;
+
+            try
+            {
+                out = new FileOutputStream( f );
+
+                for( int count; ( count = contents.read( buffer ) ) != -1; )
+                {
+                    out.write( buffer, 0, count );
+                }
+
+                out.flush();
+            }
+            catch( IOException e )
+            {
+                final String msg = NLS.bind( Msgs.failedWhileWriting, f.getAbsolutePath() );
+
+                throw new CoreException( LiferayCore.createErrorStatus( msg, e ) );
+            }
+            finally
+            {
+                if( out != null )
+                {
+                    try
+                    {
+                        out.close();
+                    }
+                    catch( IOException e )
+                    {
+                    }
+                }
+            }
+        }
+    }
+
+    public static void writeFile( final File f, final String contents, final String expectedProjectName ) throws CoreException
+    {
+        try
+        {
+            writeFile( f, contents.getBytes( "UTF-8" ), expectedProjectName );
+        }
+        catch( UnsupportedEncodingException e )
+        {
+            throw new RuntimeException( e );
+        }
     }
 
     public static int writeFileFromStream( File tempFile, InputStream in ) throws IOException
@@ -437,13 +666,19 @@ public class FileUtil
 
     private static class Msgs extends NLS
     {
+        public static String cannotWriteFile;
+        public static String failedToCreateDirectory;
+        public static String failedWhileWriting;
         public static String folderAlreadyExists;
         public static String folderValueInvalid;
         public static String folderValueNotEmpty;
+        public static String locationIsDirectory;
+        public static String locationIsFile;
 
         static
         {
             initializeMessages( FileUtil.class.getName(), Msgs.class );
         }
     }
+
 }

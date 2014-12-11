@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -53,7 +53,8 @@ public class SDKProjectBuilder extends AbstractProjectBuilder
 
     public IStatus buildLang( IFile langFile, IProgressMonitor monitor ) throws CoreException
     {
-        return sdk.buildLanguage( getProject(), langFile, null, ServerUtil.configureAppServerProperties( getProject() ) );
+        return sdk.buildLanguage(
+            getProject(), langFile, null, ServerUtil.configureAppServerProperties( getProject() ), monitor );
     }
 
     public IStatus buildService( IFile serviceXmlFile, IProgressMonitor monitor ) throws CoreException
@@ -68,7 +69,7 @@ public class SDKProjectBuilder extends AbstractProjectBuilder
         }
         catch( Exception e )
         {
-            retval = LiferayProjectCore.createErrorStatus( e );
+            retval = ProjectCore.createErrorStatus( e );
         }
 
         ResourcesPlugin.getWorkspace().build( IncrementalProjectBuilder.INCREMENTAL_BUILD, monitor );
@@ -91,7 +92,7 @@ public class SDKProjectBuilder extends AbstractProjectBuilder
         }
         catch( Exception e )
         {
-            retval = LiferayProjectCore.createErrorStatus( e );
+            retval = ProjectCore.createErrorStatus( e );
         }
 
         getProject().build( IncrementalProjectBuilder.INCREMENTAL_BUILD, monitor );
@@ -102,7 +103,7 @@ public class SDKProjectBuilder extends AbstractProjectBuilder
         }
         catch( Exception e )
         {
-            LiferayProjectCore.logError( e );
+            ProjectCore.logError( e );
         }
 
         return retval;

@@ -1,0 +1,22 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Liferay Portlet Core Tests
+Bundle-SymbolicName: com.liferay.ide.portlet.core.tests
+Bundle-Version: 3.0.0.qualifier
+Bundle-Vendor: Liferay, Inc.
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.core.resources,
+ com.liferay.ide.core.tests;bundle-version="2.0.0",
+ com.liferay.ide.project.core.tests;bundle-version="2.0.0",
+ com.liferay.ide.portlet.core;bundle-version="2.0.0",
+ org.eclipse.jem.util,
+ org.eclipse.wst.common.project.facet.core,
+ org.eclipse.wst.common.frameworks,
+ com.liferay.ide.project.core;bundle-version="2.0.0",
+ org.eclipse.sapphire.modeling.xml,
+ org.eclipse.sapphire.modeling,
+ org.eclipse.sapphire.java,
+ com.liferay.ide.server.core.tests;bundle-version="2.1.1"
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
+Bundle-ActivationPolicy: lazy
+Export-Package: com.liferay.ide.portlet.core.tests

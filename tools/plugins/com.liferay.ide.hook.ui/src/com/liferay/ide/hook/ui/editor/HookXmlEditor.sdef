@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-2014 Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -34,32 +34,17 @@
         <page-name>Overview</page-name>
         <page-header-text>Liferay Hook Configuration</page-header-text>
         <root-node>
-            <node>
-                <image>icons/e16/hook.png</image>
-                <section>
-                    <label>Internationalization</label>
-                    <scale-vertically>true</scale-vertically>
-                    <collapsible>false</collapsible>
-                    <content>
-                        <property-editor>
-                            <property>LanguageProperties</property>
-                            <show-label>false</show-label>
-                            <child-property>Value</child-property>
-                        </property-editor>
-                    </content>
-                </section>
-                <label>Hook Configuration</label>
-                <node-include>PortalPropertiesNode</node-include>
-                <node-include>CustomJSPsNode</node-include>
-                <node-include>ServicesNode</node-include>
-                <node-include>FiltersAndMappingsNode</node-include>
-                <node-include>StrutsActionsNode</node-include>
-                <node-include>IndexersNode</node-include>
-
-            </node>
+            <node-include>PortalPropertiesNode</node-include>
+            <node-include>CustomJSPsNode</node-include>
+            <node-include>ServicesNode</node-include>
+            <node-include>FiltersAndMappingsNode</node-include>
+            <node-include>StrutsActionsNode</node-include>
+            <node-include>IndexersNode</node-include>
+            <node-include>LanguagePropertiesNode</node-include>
         </root-node>
         <page-header-image>images/hook.png</page-header-image>
         <element-type>Hook6xx</element-type>
+        <initial-selection>Portal Properties</initial-selection>
     </editor-page>
     <node>
         <id>PortalPropertiesNode</id>
@@ -68,7 +53,7 @@
             <content>
                 <with>
                     <path>PortalPropertiesFile</path>
-                    <panel>
+                    <case>
                         <key>PortalPropertiesFile</key>
                         <content>
                             <property-editor>
@@ -80,53 +65,9 @@
                                     <condition>CreateSrcFileActionHandler$Condition</condition>
                                     <id>Sapphire.Create.Properties.File</id>
                                 </action-handler>
-                                <!-- TODO IDE-806
-                                <action-handler>
-                                    <action>Sapphire.Jump</action>
-                                    <id>Sapphire.Jump.Path.Relative</id>
-                                    <impl>RelativePathJumpActionHandler</impl>
-                                    <label>Open Properties File</label>
-                                </action-handler>
-                                -->
                             </property-editor>
-                            <separator></separator>
-                            <property-editor>
-                                <property>../PortalPropertiesOverrides</property>
-                                <hint>
-                                    <value>DefaultListPropertyEditorRenderer$Factory</value>
-                                    <name>factory</name>
-                                </hint>
-                            </property-editor>
-
-                            <separator>
-                                <label>Details</label>
-                            </separator>
-                            <switching-panel>
-                                <list-selection-controller>
-                                    <property>../PortalPropertiesOverrides</property>
-                                </list-selection-controller>
-                                <panel>
-                                    <key>PortalProperty</key>
-                                    <content>
-                                        <property-editor>
-                                            <property>Name</property>
-                                            <label>Override Name</label>
-                                        </property-editor>
-                                        <property-editor>
-                                            <property>Value</property>
-                                            <label>Override Value</label>
-                                        </property-editor>
-                                    </content>
-                                </panel>
-                                <default-panel>
-                                    <content>
-                                        <label>Select a portal property item above to view or edit additional
-                                            parameters.</label>
-                                    </content>
-                                </default-panel>
-                            </switching-panel>
                         </content>
-                    </panel>
+                    </case>
                     <label>Customize Liferay Portal Properties</label>
                 </with>
             </content>
@@ -140,7 +81,7 @@
                 <with>
                     <path>CustomJspDir</path>
                     <label>Customize Liferay Portal JSPs</label>
-                    <panel>
+                    <case>
                         <key>CustomJspDir</key>
                         <content>
                             <property-editor>
@@ -165,28 +106,26 @@
                             <separator>
                                 <label>Details</label>
                             </separator>
-                            <switching-panel>
-                                <list-selection-controller>
-                                    <property>../CustomJsps</property>
-                                </list-selection-controller>
-                                <default-panel>
-                                    <content>
-                                        <label>Select a custom jsp item above to view or edit additional parameters.
-                                        </label>
-                                    </content>
-                                </default-panel>
-                                <panel>
-                                    <key>CustomJsp</key>
+                            <detail-section>
+                                <property>../CustomJsps</property>
+                                <case>
+                                    <element-type>CustomJsp</element-type>
                                     <content>
                                         <property-editor>
                                             <property>Value</property>
                                             <show-label>true</show-label>
                                         </property-editor>
                                     </content>
-                                </panel>
-                            </switching-panel>
+                                </case>
+                                <case>
+                                    <content>
+                                        <label>Select a custom jsp item above to view or edit additional parameters.
+                                        </label>
+                                    </content>
+                                </case>
+                            </detail-section>
                         </content>
-                    </panel>
+                    </case>
                 </with>
             </content>
         </section>
@@ -205,6 +144,11 @@
                     <show-image></show-image>
                     <label>Add a Service Wrapper</label>
                 </action-link>
+                <actuator>
+                    <action-id>Sapphire.Add</action-id>
+                    <label>Add a Service Wrapper</label>
+                    <show-image>true</show-image>
+                </actuator>
             </content>
         </section>
         <node-include>ServicesNodeList</node-include>
@@ -284,6 +228,22 @@
                     <action-id>Sapphire.Add</action-id>
                     <action-handler-id>Sapphire.Add.IServletFilterMapping</action-handler-id>
                 </action-link>
+                <actuator>
+                    <action-id>Sapphire.Add</action-id>
+                    <show-image>true</show-image>
+                    <label>Add a Servlet Filter</label>
+                </actuator>
+                <actuator>
+                    <action-id>Sapphire.Add</action-id>
+                    <action-handler>
+                        <action>Sapphire.Add</action>
+                        <id>Sapphire.Add.ServletFilterMapping</id>
+                        <impl>AddServletFilterMappingAction</impl>
+                    </action-handler>
+                    <label>Add a Servlet Filter Mapping</label>
+                    <show-image>true</show-image>
+                    <action-handler-id>Sapphire.Add.ServletFilterMapping</action-handler-id>
+                </actuator>
             </content>
         </section>
     </node>
@@ -363,6 +323,10 @@
                     <show-image></show-image>
                     <action-id>Sapphire.Add</action-id>
                 </action-link>
+                <actuator>
+                    <action-id>Sapphire.Add</action-id>
+                    <show-image>true</show-image>
+                </actuator>
             </content>
         </section>
     </node>
@@ -402,6 +366,10 @@
                     <show-image></show-image>
                     <action-id>Sapphire.Add</action-id>
                 </action-link>
+                <actuator>
+                    <action-id>Sapphire.Add</action-id>
+                    <show-image>true</show-image>
+                </actuator>
             </content>
         </section>
         <node-include>IndexerPostProcessorsList</node-include>
@@ -463,4 +431,18 @@
             </section>
         </case>
     </node-factory>
+    <node>
+        <id>LanguagePropertiesNode</id>
+        <image>icons/e16/properties_16x16.gif</image>
+        <label>Language Properties</label>
+        <section>
+            <content>
+                <property-editor>
+                    <show-label>false</show-label>
+                    <property>LanguageProperties</property>
+                    <span>false</span>
+                </property-editor>
+            </content>
+        </section>
+    </node>
 </definition>

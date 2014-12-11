@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -86,14 +86,14 @@ public class BinaryProjectsImportOperation extends AbstractDataModelOperation
 
                         try
                         {
-                            monitor.setTaskName( Msgs.creatingPlugin + pluginBinaryRecord.getLiferayPluginName() );
+                            monitor.subTask( Msgs.creatingPlugin + pluginBinaryRecord.getLiferayPluginName() );
                             projectRecords[i] =
                                 ProjectImportUtil.createSDKPluginProject( bridgedRuntime, pluginBinaryRecord, liferaySDK );
                             monitor.worked( 1 );
                         }
                         catch( IOException e )
                         {
-                            throw new CoreException( LiferayProjectCore.createErrorStatus( "Error creating project.", e ) ); //$NON-NLS-1$
+                            throw new CoreException( ProjectCore.createErrorStatus( "Error creating project.", e ) ); //$NON-NLS-1$
                         }
 
                     }

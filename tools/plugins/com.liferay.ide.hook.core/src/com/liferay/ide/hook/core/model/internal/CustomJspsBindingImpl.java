@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,6 +15,7 @@
 
 package com.liferay.ide.hook.core.model.internal;
 
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.hook.core.model.CustomJsp;
@@ -29,17 +30,15 @@ import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelElementType;
-import org.eclipse.sapphire.modeling.ModelProperty;
-import org.eclipse.sapphire.modeling.Resource;
+import org.eclipse.sapphire.ElementType;
+import org.eclipse.sapphire.Property;
+import org.eclipse.sapphire.Resource;
 
 /**
  * @author Gregory Amerson
  */
 public class CustomJspsBindingImpl extends HookListBindingImpl
 {
-
     private List<ObjectValue<String>> customJsps;
     private IPath lastCustomJspDirPath;
     private IPath portalDir;
@@ -85,11 +84,11 @@ public class CustomJspsBindingImpl extends HookListBindingImpl
     @Override
     protected Resource resource( Object obj )
     {
-        return new CustomJspResource( this.element().resource(), (ObjectValue<String>) obj );
+        return new CustomJspResource( this.property().element().resource(), (ObjectValue<String>) obj );
     }
 
     @Override
-    protected Object insertUnderlyingObject( ModelElementType type, int position )
+    protected Object insertUnderlyingObject( ElementType type, int position )
     {
         ObjectValue<String> retval = null;
 
@@ -144,15 +143,20 @@ public class CustomJspsBindingImpl extends HookListBindingImpl
     }
 
     @Override
-    public void init( IModelElement element, ModelProperty property, String[] params )
+    public void init( Property property )
     {
-        super.init( element, property, params );
+        super.init( property );
 
         final ILiferayProject liferayProject = LiferayCore.create( project() );
 
         if( liferayProject != null )
         {
-            this.portalDir = liferayProject.getAppServerPortalDir();
+            final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+            if( portal != null )
+            {
+                this.portalDir = portal.getAppServerPortalDir();
+            }
         }
     }
 
@@ -164,7 +168,7 @@ public class CustomJspsBindingImpl extends HookListBindingImpl
     }
 
     @Override
-    public ModelElementType type( Resource resource )
+    public ElementType type( Resource resource )
     {
         if( resource instanceof CustomJspResource )
         {

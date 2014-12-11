@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,7 +17,7 @@ package com.liferay.ide.maven.ui.action;
 
 import com.liferay.ide.maven.ui.LiferayMavenUI;
 import com.liferay.ide.maven.ui.MavenUIProjectBuilder;
-import com.liferay.ide.project.ui.ProjectUIPlugin;
+import com.liferay.ide.project.ui.ProjectUI;
 import com.liferay.ide.ui.action.AbstractObjectAction;
 
 import org.eclipse.core.resources.IFile;
@@ -100,7 +100,7 @@ public abstract class MavenGoalAction extends AbstractObjectAction
                         }
                         catch( Exception e )
                         {
-                            return ProjectUIPlugin.createErrorStatus( "Error running Maven goal " + getMavenGoals(), e ); //$NON-NLS-1$
+                            return ProjectUI.createErrorStatus( "Error running Maven goal " + getMavenGoals(), e ); //$NON-NLS-1$
                         }
 
                         return Status.OK_STATUS;

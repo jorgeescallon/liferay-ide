@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -19,6 +19,7 @@ package com.liferay.ide.hook.ui.action;
 
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.hook.core.model.ServiceWrapper;
+import com.liferay.ide.hook.ui.HookUI;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.jdt.core.IJavaProject;
@@ -34,21 +35,21 @@ import org.eclipse.jdt.ui.dialogs.ITypeInfoRequestor;
 import org.eclipse.jdt.ui.dialogs.TypeSelectionExtension;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.osgi.util.NLS;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.Property;
 import org.eclipse.sapphire.java.JavaTypeName;
 import org.eclipse.sapphire.modeling.CapitalizationType;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelProperty;
+import org.eclipse.sapphire.ui.Presentation;
 import org.eclipse.sapphire.ui.SapphireAction;
-import org.eclipse.sapphire.ui.SapphireBrowseActionHandler;
-import org.eclipse.sapphire.ui.SapphireRenderingContext;
 import org.eclipse.sapphire.ui.def.ActionHandlerDef;
-import org.eclipse.sapphire.ui.internal.SapphireUiFrameworkPlugin;
+import org.eclipse.sapphire.ui.forms.BrowseActionHandler;
+import org.eclipse.sapphire.ui.forms.swt.SwtPresentation;
 import org.eclipse.ui.dialogs.SelectionDialog;
 
 /**
  * @author Gregory Amerson
  */
-public final class ServiceTypeImplBrowseActionHandler extends SapphireBrowseActionHandler
+public final class ServiceTypeImplBrowseActionHandler extends BrowseActionHandler
 {
 
     public static final String ID = "ServiceTypeImpl.Browse.Java.Type"; //$NON-NLS-1$
@@ -58,10 +59,10 @@ public final class ServiceTypeImplBrowseActionHandler extends SapphireBrowseActi
     private String kind;
 
     @Override
-    public String browse( final SapphireRenderingContext context )
+    public String browse( final Presentation context )
     {
-        final IModelElement element = getModelElement();
-        final ModelProperty property = getProperty();
+        final Element element = getModelElement();
+        final Property property = property();
         final IProject project = element.adapt( IProject.class );
 
         try
@@ -103,7 +104,7 @@ public final class ServiceTypeImplBrowseActionHandler extends SapphireBrowseActi
                 else
                 {
                     MessageDialog.openInformation(
-                        context.getShell(), Msgs.serviceImplBrowse,
+                        ((SwtPresentation)context).shell(), Msgs.serviceImplBrowse,
                         Msgs.validServiceTypeProperty );
 
                     return null;
@@ -112,16 +113,16 @@ public final class ServiceTypeImplBrowseActionHandler extends SapphireBrowseActi
 
             final SelectionDialog dlg =
                 JavaUI.createTypeDialog(
-                    context.getShell(), null, scope, this.browseDialogStyle, false, StringPool.DOUBLE_ASTERISK, extension );
+                    ((SwtPresentation)context).shell(), null, scope, this.browseDialogStyle, false, StringPool.DOUBLE_ASTERISK, extension );
 
-            final String title = property.getLabel( true, CapitalizationType.TITLE_STYLE, false );
+            final String title = property.definition().getLabel( true, CapitalizationType.TITLE_STYLE, false );
             dlg.setTitle( Msgs.select + title );
 
             if( dlg.open() == SelectionDialog.OK )
             {
                 Object results[] = dlg.getResult();
                 assert results != null && results.length == 1;
-                
+
                 if( results[0] instanceof IType )
                 {
                     return ( (IType) results[0] ).getFullyQualifiedName();
@@ -130,19 +131,19 @@ public final class ServiceTypeImplBrowseActionHandler extends SapphireBrowseActi
         }
         catch( JavaModelException e )
         {
-            SapphireUiFrameworkPlugin.log( e );
+            HookUI.logError( e );
         }
 
         return null;
     }
 
-    private String getServiceType( IModelElement element, ModelProperty property )
+    private String getServiceType( Element element, Property property )
     {
         String retval = null;
 
         ServiceWrapper service = element.nearest( ServiceWrapper.class );
 
-        JavaTypeName javaTypeName = service.getServiceType().getContent( false );
+        JavaTypeName javaTypeName = service.getServiceType().content( false );
 
         if( javaTypeName != null )
         {

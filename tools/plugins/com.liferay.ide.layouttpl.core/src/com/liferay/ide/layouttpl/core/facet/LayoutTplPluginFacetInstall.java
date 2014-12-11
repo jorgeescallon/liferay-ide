@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -20,15 +20,13 @@ package com.liferay.ide.layouttpl.core.facet;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.FileUtil;
 import com.liferay.ide.layouttpl.core.LayoutTplCore;
+import com.liferay.ide.project.core.PluginsSDKProject;
 import com.liferay.ide.project.core.facet.IPluginFacetConstants;
 import com.liferay.ide.project.core.facet.PluginFacetInstall;
 import com.liferay.ide.sdk.core.ISDKConstants;
-import com.liferay.ide.sdk.core.SDK;
-import com.liferay.ide.server.util.ServerUtil;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
@@ -46,7 +44,7 @@ import org.eclipse.wst.common.project.facet.core.IProjectFacetVersion;
 
 /**
  * @author Greg Amerson
- * @author kamesh.sampath - [IDE-450]
+ * @author Kamesh Sampath - [IDE-450]
  */
 public class LayoutTplPluginFacetInstall extends PluginFacetInstall
 {
@@ -62,6 +60,7 @@ public class LayoutTplPluginFacetInstall extends PluginFacetInstall
 
         if( masterModel != null && masterModel.getBooleanProperty( CREATE_PROJECT_OPERATION ) )
         {
+            /*
             // get the template zip for layouttpl and extract into the project
             SDK sdk = getSDK();
 
@@ -84,6 +83,19 @@ public class LayoutTplPluginFacetInstall extends PluginFacetInstall
 
             // cleanup files
             FileUtil.deleteDir( newLayoutTplPath.toFile(), true );
+            */
+
+            // IDE-1122 SDK creating project has been moved to Class NewPluginProjectWizard
+            String layoutTplName = this.masterModel.getStringProperty( LAYOUTTPL_NAME );
+
+            IPath projectTempPath = (IPath) masterModel.getProperty( PROJECT_TEMP_PATH );
+
+            processNewFiles( projectTempPath.append( layoutTplName +
+                ISDKConstants.LAYOUTTPL_PLUGIN_PROJECT_SUFFIX ) );
+
+            FileUtil.deleteDir( projectTempPath.toFile(), true );
+            // End IDE-1122
+
         }
         else if( shouldSetupDefaultOutputLocation() )
         {
@@ -92,7 +104,7 @@ public class LayoutTplPluginFacetInstall extends PluginFacetInstall
 
         removeUnneededClasspathEntries();
 
-        final IFolder folder = CoreUtil.getDefaultDocrootFolder( project );
+        final IFolder folder = new PluginsSDKProject( project, null ).getDefaultDocrootFolder();
 
         if( folder != null && folder.exists() )
         {

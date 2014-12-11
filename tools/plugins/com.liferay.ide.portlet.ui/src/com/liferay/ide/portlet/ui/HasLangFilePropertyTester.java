@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,12 +15,16 @@
 
 package com.liferay.ide.portlet.ui;
 
+import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.project.core.util.ProjectUtil;
+
+import java.util.List;
 
 import org.eclipse.core.expressions.PropertyTester;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.jdt.core.JavaCore;
 
 /**
  * @author Greg Amerson
@@ -40,7 +44,7 @@ public class HasLangFilePropertyTester extends PropertyTester
             {
                 try
                 {
-                    IFolder[] srcFolders = ProjectUtil.getSourceFolders( project );
+                    final List<IFolder> srcFolders = CoreUtil.getSourceFolders( JavaCore.create( project ) );
 
                     for( IFolder src : srcFolders )
                     {

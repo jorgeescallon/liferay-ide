@@ -10,17 +10,20 @@
  *******************************************************************************/
 package com.liferay.ide.server.tomcat.core;
 
-import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.ide.core.ILiferayProject;
+import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.project.core.util.ProjectUtil;
+import com.liferay.ide.server.util.ComponentUtil;
 import com.liferay.ide.server.util.ServerUtil;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
@@ -36,7 +39,6 @@ import org.eclipse.jst.server.tomcat.core.internal.TomcatPlugin;
 import org.eclipse.jst.server.tomcat.core.internal.TomcatVersionHelper;
 import org.eclipse.jst.server.tomcat.core.internal.xml.server40.ServerInstance;
 import org.eclipse.osgi.util.NLS;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
 import org.eclipse.wst.server.core.IModule;
 import org.eclipse.wst.server.core.IServer;
 import org.eclipse.wst.server.core.model.IModuleResource;
@@ -64,7 +66,7 @@ public class LiferayPublishOperation extends PublishOperation {
 	/**
 	 * Construct the operation object to publish the specified module
 	 * to the specified server.
-	 * 
+	 *
 	 * @param server server to which the module will be published
 	 * @param kind kind of publish
 	 * @param module module to publish
@@ -106,7 +108,7 @@ public class LiferayPublishOperation extends PublishOperation {
 	 */
 	public void execute(IProgressMonitor monitor, IAdaptable info) throws CoreException {
 		List status = new ArrayList();
-		
+
 		// If parent web module
 		if (module.length == 1) {
 			if ( !ServerUtil.isExtProject( module[0].getProject() ) )
@@ -144,8 +146,8 @@ public class LiferayPublishOperation extends PublishOperation {
 	}
 
 	private void publishDir(IModule module2, List status, IProgressMonitor monitor) throws CoreException {
-		IPath path = server.getModuleDeployDirectory(module2);
-		
+		final IPath path = server.getModuleDeployDirectory(module2);
+
 		// Remove if requested or if previously published and are now serving without publishing
 		if (kind == IServer.PUBLISH_CLEAN || deltaKind == ServerBehaviourDelegate.REMOVED
 				|| server.getTomcatServer().isServeModulesWithoutPublish()) {
@@ -178,33 +180,71 @@ public class LiferayPublishOperation extends PublishOperation {
 				IStatus[] stat = PublishHelper.deleteDirectory(f, monitor);
 				addArrayToList(status, stat);
 			}
-			
+
 			if (deltaKind == ServerBehaviourDelegate.REMOVED
 					|| server.getTomcatServer().isServeModulesWithoutPublish())
 				return;
 		}
-		
+
 		IPath baseDir = server.getTomcatServer().getRuntimeBaseDirectory();
 		IPath autoDeployDir = new Path(server.getLiferayTomcatServer().getAutoDeployDirectory());
 		boolean serverStopped = server.getServer().getServerState() == IServer.STATE_STOPPED;
-		
+
 		if (kind == IServer.PUBLISH_CLEAN || kind == IServer.PUBLISH_FULL) {
 			IModuleResource[] mr = server.getResources(module);
 			IStatus[] stat = helper.publishFull(mr, path, monitor);
 			addArrayToList(status, stat);
-			
+
 			clearWebXmlDescriptors(module2.getProject(), path, monitor);
-			
+
 			server.moveContextToAutoDeployDir(module2, path, baseDir, autoDeployDir, true, serverStopped);
 
 			return;
 		}
-        
+
 		IModuleResourceDelta[] delta = server.getPublishedResourceDelta(module);
-				
+
+		// check if we have a anti*Locking directory temp files and copy the resources out there as well
+        File[] antiDirs = new File[0];
+		try
+        {
+            File tempDir =
+                server.getLiferayTomcatServer().getTomcatRuntime().getRuntime().getLocation().append( "temp" ).toFile(); //$NON-NLS-1$
+            antiDirs = tempDir.listFiles
+            (
+                new FilenameFilter()
+                {
+                    public boolean accept( File dir, String name )
+                    {
+                        return name.endsWith( path.lastSegment() );
+                    }
+                }
+            );
+        }
+        catch( Exception e )
+        {
+        }
+
+
 		int size = delta.length;
 		for (int i = 0; i < size; i++) {
 			IStatus[] stat = helper.publishDelta(delta[i], path, monitor);
+
+			for( File antiDir : antiDirs )
+			{
+			    if( antiDir.exists() )
+			    {
+			        try
+	                {
+	                    helper.publishDelta(delta[i], new Path( antiDir.getCanonicalPath() ), monitor);
+	                }
+	                catch( Exception e)
+	                {
+	                    // best effort
+	                }
+			    }
+			}
+
 			addArrayToList(status, stat);
 		}
 
@@ -217,7 +257,7 @@ public class LiferayPublishOperation extends PublishOperation {
 
 		for ( IModuleResourceDelta del : delta )
 		{
-			if ( CoreUtil.containsMember( del, paths ) || isHookProjectDelta( del ) )
+			if ( ComponentUtil.containsMember( del, paths ) || isHookProjectDelta( del ) )
 			{
 				clearWebXmlDescriptors(module2.getProject(), path, monitor);
 
@@ -247,7 +287,7 @@ public class LiferayPublishOperation extends PublishOperation {
             {
                 if ( !webXmlFile.delete() )
                 {
-                    ProjectUtil.createDefaultWebXml( webXmlFile );
+                    ProjectUtil.createDefaultWebXml( webXmlFile, project.getName() );
                 }
             }
 
@@ -255,37 +295,37 @@ public class LiferayPublishOperation extends PublishOperation {
             {
                 if ( !liferayWebXmlFile.delete() )
                 {
-                    ProjectUtil.createDefaultWebXml( liferayWebXmlFile );
+                    ProjectUtil.createDefaultWebXml( liferayWebXmlFile, project.getName() );
                 }
             }
         }
     }
 
     private boolean isHookProjectDelta( IModuleResourceDelta del )
-	{
-		IProject project = ( (IResource) del.getModuleResource().getAdapter( IResource.class ) ).getProject();
+    {
+        final IResource resource = (IResource) del.getModuleResource().getAdapter( IResource.class );
 
-		return ProjectUtil.isHookProject( project );
-	}
+        if( resource != null )
+        {
+            return ProjectUtil.isHookProject( resource.getProject() );
+        }
+
+        return false;
+    }
 
 	private IModuleResource getWebXmlFile( IProject project, IPath modelDeployDirectory )
 	{
 	    // IDE-110 IDE-648
-		IVirtualFolder webappRoot = CoreUtil.getDocroot( project );
+	    final ILiferayProject lrproject = LiferayCore.create( project );
+	    final IFolder webappRoot = lrproject.getDefaultDocrootFolder();
 
-		if (webappRoot != null)
+		if( webappRoot != null && webappRoot.exists() )
 		{
-		    for( IContainer container : webappRoot.getUnderlyingFolders() )
-            {
-                if( container != null && container.exists() )
-                {
-                    IFile webXml = container.getFile( new Path( WEB_XML_PATH ) );
+            IFile webXml = webappRoot.getFile( new Path( WEB_XML_PATH ) );
 
-                    if ( webXml.exists() )
-                    {
-                        return new ModuleFile( webXml, webXml.getName(), modelDeployDirectory.append( WEB_XML_PATH ) );
-                    }
-                }
+            if ( webXml.exists() )
+            {
+                return new ModuleFile( webXml, webXml.getName(), modelDeployDirectory.append( WEB_XML_PATH ) );
             }
 		}
 
@@ -315,7 +355,7 @@ public class LiferayPublishOperation extends PublishOperation {
 		}
 		// Establish the destination directory
 		path = jarPath.removeLastSegments(1);
-		
+
 		// Remove if requested or if previously published and are now serving without publishing
 		if (moving || kind == IServer.PUBLISH_CLEAN || deltaKind == ServerBehaviourDelegate.REMOVED
 				|| server.getTomcatServer().isServeModulesWithoutPublish()) {
@@ -334,7 +374,7 @@ public class LiferayPublishOperation extends PublishOperation {
 			if (delta == null || delta.length == 0)
 				return;
 		}
-		
+
 		// make directory if it doesn't exist
 		if (!path.toFile().exists())
 			path.toFile().mkdirs();
@@ -377,7 +417,7 @@ public class LiferayPublishOperation extends PublishOperation {
 				file.delete();
 			}
 			p.remove(module[1].getId());
-			
+
 			if (deltaKind == ServerBehaviourDelegate.REMOVED
 					|| server.getTomcatServer().isServeModulesWithoutPublish())
 				return;
@@ -402,14 +442,14 @@ public class LiferayPublishOperation extends PublishOperation {
 	/**
 	 * Utility method to throw a CoreException based on the contents of a list of
 	 * error and warning status.
-	 * 
+	 *
 	 * @param status a List containing error and warning IStatus
 	 * @throws CoreException
 	 */
 	protected static void throwException(List status) throws CoreException {
 		if (status == null || status.size() == 0)
 			return;
-		
+
 		if (status.size() == 1) {
 			IStatus status2 = (IStatus) status.get(0);
 			throw new CoreException(status2);
@@ -424,7 +464,7 @@ public class LiferayPublishOperation extends PublishOperation {
 	protected static void addArrayToList(List list, IStatus[] a) {
 		if (list == null || a == null || a.length == 0)
 			return;
-		
+
 		int size = a.length;
 		for (int i = 0; i < size; i++)
 			list.add(a[i]);

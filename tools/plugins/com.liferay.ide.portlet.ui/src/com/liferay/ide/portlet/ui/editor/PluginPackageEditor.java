@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,6 +15,7 @@
 
 package com.liferay.ide.portlet.ui.editor;
 
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.model.IModelChangedEvent;
@@ -62,7 +63,7 @@ public class PluginPackageEditor extends IDEFormEditor implements IModelChangedL
 
     protected int lastPageIndex = -1;
 
-    protected PluginPackageModel model;;
+    protected PluginPackageModel model;
 
     public void contextRemoved( InputContext context )
     {
@@ -97,7 +98,8 @@ public class PluginPackageEditor extends IDEFormEditor implements IModelChangedL
         try
         {
             final ILiferayProject liferayProject = LiferayCore.create( getEditorInput().getFile().getProject() );
-            return liferayProject.getAppServerPortalDir();
+            final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+            return portal.getAppServerPortalDir();
         }
         catch( Exception e )
         {
@@ -259,7 +261,9 @@ public class PluginPackageEditor extends IDEFormEditor implements IModelChangedL
             {
                 ignoreModelChanges = true;
 
-                ( (PluginPackageModel) getModel() ).load( new ByteArrayInputStream( props.getBytes() ), false );
+                if (getLastDirtyState()) {
+                    ( (PluginPackageModel) getModel() ).load( new ByteArrayInputStream( props.getBytes() ), false );
+                }
 
                 ignoreModelChanges = false;
             }

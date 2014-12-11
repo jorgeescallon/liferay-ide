@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,6 +17,8 @@
 
 package com.liferay.ide.hook.ui.action;
 
+import com.liferay.ide.hook.ui.HookUI;
+
 import java.util.EnumSet;
 
 import org.eclipse.core.resources.IProject;
@@ -28,25 +30,25 @@ import org.eclipse.jdt.core.search.SearchEngine;
 import org.eclipse.jdt.ui.IJavaElementSearchConstants;
 import org.eclipse.jdt.ui.JavaUI;
 import org.eclipse.osgi.util.NLS;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.Property;
 import org.eclipse.sapphire.java.JavaTypeConstraintService;
 import org.eclipse.sapphire.java.JavaTypeKind;
 import org.eclipse.sapphire.modeling.CapitalizationType;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelProperty;
+import org.eclipse.sapphire.ui.Presentation;
 import org.eclipse.sapphire.ui.SapphireAction;
-import org.eclipse.sapphire.ui.SapphireBrowseActionHandler;
-import org.eclipse.sapphire.ui.SapphireRenderingContext;
 import org.eclipse.sapphire.ui.def.ActionHandlerDef;
-import org.eclipse.sapphire.ui.internal.SapphireUiFrameworkPlugin;
+import org.eclipse.sapphire.ui.forms.BrowseActionHandler;
+import org.eclipse.sapphire.ui.forms.swt.SwtPresentation;
 import org.eclipse.ui.dialogs.SelectionDialog;
 
 /**
  * @author Gregory Amerson
  */
-public final class HierarchyJavaTypeBrowseActionHandler extends SapphireBrowseActionHandler
+public final class HierarchyJavaTypeBrowseActionHandler extends BrowseActionHandler
 {
     public static final String ID = "Hierarchy.Browse.Java.Type"; //$NON-NLS-1$
-    
+
     private String typeName;
     private String filter;
 
@@ -61,15 +63,15 @@ public final class HierarchyJavaTypeBrowseActionHandler extends SapphireBrowseAc
     }
 
     @Override
-    public String browse( final SapphireRenderingContext context )
+    public String browse( final Presentation context )
     {
-        final IModelElement element = getModelElement();
-        final ModelProperty property = getProperty();
+        final Element element = getModelElement();
+        final Property property = property();
         final IProject project = element.adapt( IProject.class );
 
         try
         {
-            JavaTypeConstraintService typeService = element.service( property, JavaTypeConstraintService.class );
+            JavaTypeConstraintService typeService = property.service( JavaTypeConstraintService.class );
 
             final EnumSet<JavaTypeKind> kinds = EnumSet.noneOf( JavaTypeKind.class );
             kinds.addAll( typeService.kinds() );
@@ -117,13 +119,21 @@ public final class HierarchyJavaTypeBrowseActionHandler extends SapphireBrowseAc
                 }
             }
 
-            final IJavaSearchScope scope =
-                SearchEngine.createHierarchyScope( JavaCore.create( project ).findType( this.typeName ) );
+            IJavaSearchScope scope = null;
+
+            final IType type = JavaCore.create( project ).findType( this.typeName );
+
+            if( type != null )
+            {
+                scope = SearchEngine.createHierarchyScope( type );
+            }
+
+            SwtPresentation swt = (SwtPresentation) context;
 
             final SelectionDialog dlg =
-                JavaUI.createTypeDialog( context.getShell(), null, scope, browseDialogStyle, false, this.filter, null );
+                JavaUI.createTypeDialog( swt.shell(), null, scope, browseDialogStyle, false, this.filter, null );
 
-            final String title = property.getLabel( true, CapitalizationType.TITLE_STYLE, false );
+            final String title = property.definition().getLabel( true, CapitalizationType.TITLE_STYLE, false );
 
             dlg.setTitle( Msgs.select + title );
 
@@ -131,7 +141,7 @@ public final class HierarchyJavaTypeBrowseActionHandler extends SapphireBrowseAc
             {
                 Object results[] = dlg.getResult();
                 assert results != null && results.length == 1;
-                
+
                 if( results[0] instanceof IType )
                 {
                     return ( (IType) results[0] ).getFullyQualifiedName();
@@ -140,7 +150,7 @@ public final class HierarchyJavaTypeBrowseActionHandler extends SapphireBrowseAc
         }
         catch( JavaModelException e )
         {
-            SapphireUiFrameworkPlugin.log( e );
+            HookUI.logError( e );
         }
 
         return null;

@@ -15,36 +15,82 @@
       </content-type>
    </extension>
    <extension
-         id="servicebuilderdescriptorvalidator"
-         name="%service.builder.descriptor.validator.name"
-         point="org.eclipse.wst.validation.validatorV2">
-      <validator
-            build="true"
-            class="com.liferay.ide.service.core.descriptor.ServiceBuilderDescriptorValidator"
-            manual="true"
-            markerId="com.liferay.ide.service.core.serviceBuilderDescriptorMarker"
-            version="1">
-         <include>
-            <rules>
-               <contentType
-                     id="com.liferay.ide.service.core.servicebuildercontent">
-               </contentType>
-            </rules>
-         </include>
-         <group
-               id="org.eclipse.wst.sse.core.structuredModelGroup">
-         </group>
-      </validator>
+         point="com.liferay.ide.core.templateDefinitions">
+      <template
+            id="com.liferay.ide.service.core.defaultServiceXmlFile"
+            name="Default service.xml file"
+            resource="defaultServiceXmlFile.ftl">
+      </template>
+      <templatesFolder
+            path="templates/">
+      </templatesFolder>
+      <templateVariable
+            name="version"
+            required="true">
+      </templateVariable>
+      <templateVariable
+            name="version_"
+            required="true">
+      </templateVariable>
+      <templateVariable
+            name="author"
+            required="true">
+      </templateVariable>
+      <templateVariable
+            name="namespace"
+            required="true">
+      </templateVariable>
+      <templateVariable
+            name="package_path"
+            required="true">
+      </templateVariable>
    </extension>
    <extension
-         id="serviceBuilderDescriptorMarker"
-         name="%service.builder.descriptor.problem.name"
-         point="org.eclipse.core.resources.markers">
-      <persistent
-            value="true">
-      </persistent>
-      <super
-            type="org.eclipse.wst.validation.problemmarker">
-      </super>
+         point="com.liferay.ide.core.templateDefinitions">
+      <template
+            id="com.liferay.ide.service.core.emptyServiceXmlFile"
+            name="Empty service.xml file"
+            resource="emptyServiceXmlFile.ftl">
+      </template>
+      <templatesFolder
+            path="templates/">
+      </templatesFolder>
+      <templateVariable
+            name="version"
+            required="true">
+      </templateVariable>
+      <templateVariable
+            name="version_"
+            required="true">
+      </templateVariable>
+      <templateVariable
+            name="author"
+            required="true">
+      </templateVariable>
+      <templateVariable
+            name="namespace"
+            required="true">
+      </templateVariable>
+      <templateVariable
+            name="package_path"
+            required="true">
+      </templateVariable>
+   </extension>
+   <extension
+         point="com.liferay.ide.project.core.liferayDescriptorHelpers">
+      <liferayDescriptorHelper
+            class="com.liferay.ide.service.core.operation.ServiceBuilderDescriptorHelper"
+            contentTypeBinding="com.liferay.ide.service.core.servicebuildercontent"
+            id="com.liferay.ide.service.core.serviceBuilderDescriptorHelper">
+      </liferayDescriptorHelper>
+   </extension>
+
+    <extension point="com.liferay.ide.project.core.upgradeProjectHandlers">
+      <upgradeProjectHandler
+            class="com.liferay.ide.service.core.UpgradeServiceBuilderHandler"
+            name="ServiceBuilderUpgrade"
+            description="Rebuild Services for service-builder projects"
+            id="com.liferay.ide.service.core.upgradeServiceBuildHandler">
+      </upgradeProjectHandler>
    </extension>
 </plugin>

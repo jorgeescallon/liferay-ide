@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,13 +15,16 @@
 
 package com.liferay.ide.portlet.ui.wizard;
 
+import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.portlet.core.PortletCore;
-import com.liferay.ide.portlet.core.dd.PortletDescriptorHelper;
 import com.liferay.ide.portlet.core.operation.INewPortletClassDataModelProperties;
 import com.liferay.ide.portlet.core.operation.NewEntryClassOperation;
 import com.liferay.ide.portlet.core.operation.NewPortletClassOperation;
 import com.liferay.ide.project.core.IPluginWizardFragmentProperties;
+import com.liferay.ide.project.core.ProjectCore;
+import com.liferay.ide.project.core.descriptor.AddNewPortletOperation;
+import com.liferay.ide.project.core.descriptor.RemoveAllPortletsOperation;
 import com.liferay.ide.project.core.util.ProjectUtil;
 
 import java.io.ByteArrayInputStream;
@@ -38,6 +41,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.templates.DocumentTemplateContext;
 import org.eclipse.jface.text.templates.Template;
@@ -48,18 +52,17 @@ import org.eclipse.jface.text.templates.persistence.TemplateStore;
 import org.eclipse.jst.j2ee.common.ParamValue;
 import org.eclipse.jst.j2ee.internal.common.operations.AddJavaEEArtifactOperation;
 import org.eclipse.jst.j2ee.internal.common.operations.NewJavaEEArtifactClassOperation;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFile;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
 
 /**
  * @author Gregory Amerson
+ * @author Kuo Zhang
  */
 @SuppressWarnings( "restriction" )
 public class AddPortletOperation extends AddJavaEEArtifactOperation
     implements INewPortletClassDataModelProperties, IPluginWizardFragmentProperties
 {
-    protected IVirtualFolder webappRoot;
+    protected IFolder webappRoot;
     protected TemplateContextType portletContextType;
     protected TemplateStore templateStore;
 
@@ -67,7 +70,7 @@ public class AddPortletOperation extends AddJavaEEArtifactOperation
     {
         super( dataModel );
 
-        this.webappRoot = CoreUtil.getDocroot( getTargetProject() );
+        this.webappRoot = LiferayCore.create( getTargetProject() ).getDefaultDocrootFolder();
         this.templateStore = store;
         this.portletContextType = type;
     }
@@ -160,11 +163,11 @@ public class AddPortletOperation extends AddJavaEEArtifactOperation
 
     protected void createEmptyFileInDefaultSourceFolder( String filePath ) throws CoreException
     {
-        IFolder[] sourceFolders = ProjectUtil.getSourceFolders( getTargetProject() );
+        List<IFolder> sourceFolders = CoreUtil.getSourceFolders( JavaCore.create( getTargetProject() ) );
 
-        if( sourceFolders != null && sourceFolders.length > 0 )
+        if( sourceFolders != null && sourceFolders.size() > 0 )
         {
-            IFile projectFile = sourceFolders[0].getFile( filePath );
+            IFile projectFile = sourceFolders.get(0).getFile( filePath );
 
             if( !projectFile.exists() )
             {
@@ -179,17 +182,12 @@ public class AddPortletOperation extends AddJavaEEArtifactOperation
 
     protected void createEmptyFileInDocroot( String filePath ) throws CoreException
     {
-        IFile projectFile = getProjectFile( filePath );
+        final IFile projectFile = getProjectFile( filePath );
 
-        if( !projectFile.exists() )
+        if( ! projectFile.exists() )
         {
-            IFolder parent = (IFolder) projectFile.getParent();
-
-            CoreUtil.prepareFolder( parent );
-
-            projectFile.create( new ByteArrayInputStream( new byte[0] ), IResource.FORCE, null );
+            CoreUtil.createEmptyFile( projectFile );
         }
-
     }
 
     @SuppressWarnings( "unchecked" )
@@ -261,11 +259,6 @@ public class AddPortletOperation extends AddJavaEEArtifactOperation
         return Status.OK_STATUS;
     }
 
-    protected PortletDescriptorHelper createPortletDescriptorHelper( IProject targetProject )
-    {
-        return new PortletDescriptorHelper( targetProject );
-    }
-
     @SuppressWarnings( "unchecked" )
     protected void createResourceForMode( String initParamName, String templateId, TemplateContext context )
     {
@@ -328,14 +321,14 @@ public class AddPortletOperation extends AddJavaEEArtifactOperation
     {
         if( shouldGenerateMetaData( aModel ) )
         {
-            PortletDescriptorHelper portletDescHelper = createPortletDescriptorHelper( getTargetProject() );
+            final IProject project = getTargetProject();
 
             if( aModel.getBooleanProperty( REMOVE_EXISTING_ARTIFACTS ) )
             {
-                portletDescHelper.removeAllPortlets();
+                removeAllPortlets( project );
             }
 
-            IStatus status = portletDescHelper.addNewPortlet( this.model );
+            IStatus status = addNewPortlet( project, this.model );
 
             if( !status.isOK() )
             {
@@ -359,8 +352,7 @@ public class AddPortletOperation extends AddJavaEEArtifactOperation
 
         if( this.webappRoot != null )
         {
-            IVirtualFile projectFile = this.webappRoot.getFile( new Path( filePath ) );
-            retval = projectFile.getUnderlyingFile();
+            retval = this.webappRoot.getFile( new Path( filePath ) );
         }
 
         return retval;
@@ -369,6 +361,16 @@ public class AddPortletOperation extends AddJavaEEArtifactOperation
     protected boolean shouldGenerateMetaData( IDataModel aModel )
     {
         return ProjectUtil.isPortletProject( getTargetProject() );
+    }
+
+    protected IStatus removeAllPortlets( IProject project )
+    {
+        return ProjectCore.operate( project, RemoveAllPortletsOperation.class );
+    }
+
+    protected IStatus addNewPortlet( IProject project, IDataModel model )
+    {
+        return ProjectCore.operate( project, AddNewPortletOperation.class, model );
     }
 
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -22,12 +22,13 @@ import org.eclipse.wst.common.project.facet.core.ProjectFacetsManager;
 
 /**
  * @author Greg Amerson
+ * @author Terry Jia
  */
 public class IPluginFacetConstants
 {
 
     public static final String EXT_PLUGIN_DEFAULT_OUTPUT_FOLDER = ISDKConstants.DEFAULT_DOCROOT_FOLDER +
-        "/WEB-INF/classes"; //$NON-NLS-1$
+        "/WEB-INF/ext-web/docroot/WEB-INF/classes"; //$NON-NLS-1$
 
     public static final String EXT_PLUGIN_SDK_CONFIG_FOLDER = ISDKConstants.DEFAULT_DOCROOT_FOLDER +
         "/WEB-INF/ext-web/" + ISDKConstants.DEFAULT_DOCROOT_FOLDER; //$NON-NLS-1$
@@ -113,6 +114,15 @@ public class IPluginFacetConstants
     public static final IProjectFacet LIFERAY_THEME_PROJECT_FACET =
         ProjectFacetsManager.getProjectFacet( LIFERAY_THEME_FACET_ID );
 
+    public static final String LIFERAY_WEB_FACET_ID = "liferay.web"; //$NON-NLS-1$
+
+    public static final String LIFERAY_WEB_FACET_TEMPLATE_ID = "liferay.web.template"; //$NON-NLS-1$
+
+    public static final String LIFERAY_WEB_PRESET = "liferay.web.preset"; //$NON-NLS-1$
+
+    public static final IProjectFacet LIFERAY_WEB_PROJECT_FACET =
+        ProjectFacetsManager.getProjectFacet( LIFERAY_WEB_FACET_ID );
+
     public static final String PORTLET_PLUGIN_SDK_CONFIG_FOLDER = ISDKConstants.DEFAULT_DOCROOT_FOLDER;
 
     public static final String PORTLET_PLUGIN_SDK_DEFAULT_OUTPUT_FOLDER = ISDKConstants.DEFAULT_DOCROOT_FOLDER + "/WEB-INF/classes"; //$NON-NLS-1$
@@ -122,4 +132,11 @@ public class IPluginFacetConstants
     public static final String THEME_PLUGIN_SDK_CONFIG_FOLDER = ISDKConstants.DEFAULT_DOCROOT_FOLDER;
 
     public static final String THEME_PLUGIN_SDK_DEFAULT_OUTPUT_FOLDER = ISDKConstants.DEFAULT_DOCROOT_FOLDER + "/WEB-INF/classes"; //$NON-NLS-1$
+
+    public static final String WEB_PLUGIN_SDK_CONFIG_FOLDER = ISDKConstants.DEFAULT_DOCROOT_FOLDER;
+
+    public static final String WEB_PLUGIN_SDK_DEFAULT_OUTPUT_FOLDER = ISDKConstants.DEFAULT_DOCROOT_FOLDER +
+        "/WEB-INF/classes"; //$NON-NLS-1$
+
+    public static final String WEB_PLUGIN_SDK_SOURCE_FOLDER = ISDKConstants.DEFAULT_DOCROOT_FOLDER + "/WEB-INF/src"; //$NON-NLS-1$
 }

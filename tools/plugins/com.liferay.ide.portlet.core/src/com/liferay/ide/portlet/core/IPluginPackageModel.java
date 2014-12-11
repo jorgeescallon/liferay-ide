@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -28,7 +28,13 @@ public interface IPluginPackageModel extends IModel, IModelChangeProvider
 
     String PROPERTY_CHANGE_LOG = "change-log"; //$NON-NLS-1$
 
+    String PROPERTY_DEPLOY_EXCLUDE = "deploy-excludes"; //$NON-NLS-1$
+
     String PROPERTY_LICENSES = "licenses"; //$NON-NLS-1$
+
+    String PROPERTY_LIFERAY_VERSIONS = "liferay-versions"; //$NON-NLS-1$
+
+    String PROPERTY_LONG_DESCRIPTION = "long-description"; //$NON-NLS-1$
 
     String PROPERTY_MODULE_GROUP_ID = "module-group-id"; //$NON-NLS-1$
 

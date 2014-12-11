@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -25,6 +25,7 @@ import org.w3c.dom.Text;
 
 /**
  * @author Greg Amerson
+ * @author Terry Jia
  */
 public class NodeUtil
 {
@@ -105,6 +106,29 @@ public class NodeUtil
             if( children != null && children.getLength() > 0 )
             {
                 for( int i = 0; i < children.getLength(); i++ )
+                {
+                    Node child = children.item( i );
+
+                    if( elementName.equals( child.getNodeName() ) )
+                    {
+                        return child;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public static Node findLastChild( Element element, String elementName )
+    {
+        if( element != null && !( CoreUtil.isNullOrEmpty( elementName ) ) )
+        {
+            NodeList children = element.getChildNodes();
+
+            if( children != null && children.getLength() > 0 )
+            {
+                for( int i = children.getLength() - 1; i >= 0; i-- )
                 {
                     Node child = children.item( i );
 
@@ -200,6 +224,35 @@ public class NodeUtil
             }
 
             parentElement.insertBefore( newChildElement, refNode );
+        }
+
+        return newChildElement;
+    }
+
+    public static Element insertChildElementAfter(
+        Element parentElement, Node refNode, String newElementName, String initialTextContent )
+    {
+        Element newChildElement = null;
+
+        if( parentElement != null && newElementName != null )
+        {
+            Document ownerDocument = parentElement.getOwnerDocument();
+
+            newChildElement = ownerDocument.createElement( newElementName );
+
+            if( initialTextContent != null )
+            {
+                newChildElement.appendChild( ownerDocument.createTextNode( initialTextContent ) );
+            }
+
+            if( parentElement.getLastChild().equals( refNode ) )
+            {
+                parentElement.appendChild( newChildElement );
+            }
+            else
+            {
+                parentElement.insertBefore( newChildElement, refNode.getNextSibling() );
+            }
         }
 
         return newChildElement;

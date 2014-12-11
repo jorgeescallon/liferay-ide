@@ -2,14 +2,14 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: %bundle.name
 Bundle-SymbolicName: com.liferay.ide.maven.core;singleton:=true
-Bundle-Version: 2.0.0.qualifier
+Bundle-Version: 3.0.0.qualifier
 Bundle-Activator: com.liferay.ide.maven.core.LiferayMavenCore
 Bundle-Vendor: %bundle.vendor
 Require-Bundle: org.eclipse.core.runtime,
  com.liferay.ide.core;bundle-version="2.0.0";visibility:=reexport,
- org.eclipse.m2e.core;bundle-version="1.4.0";visibility:=reexport,
- org.eclipse.m2e.wtp;bundle-version="0.17.0";visibility:=reexport,
- org.eclipse.m2e.jdt;bundle-version="1.4.0",
+ org.eclipse.m2e.core;bundle-version="1.5.0";visibility:=reexport,
+ org.eclipse.m2e.wtp;bundle-version="1.1.0";visibility:=reexport,
+ org.eclipse.m2e.jdt;bundle-version="1.5.0",
  org.eclipse.jst.common.project.facet.core,
  org.eclipse.wst.common.project.facet.core,
  org.eclipse.wst.common.frameworks,
@@ -17,11 +17,20 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.wst.common.emfworkbench.integration,
  com.liferay.ide.layouttpl.core;bundle-version="2.0.0",
  com.liferay.ide.theme.core;bundle-version="2.0.0",
- org.eclipse.m2e.maven.runtime,
- org.eclipse.emf.ecore
-Bundle-RequiredExecutionEnvironment: J2SE-1.5
+ org.eclipse.m2e.maven.runtime;bundle-version="1.5.0",
+ org.eclipse.emf.ecore,
+ org.eclipse.m2e.archetype.common,
+ org.eclipse.core.resources,
+ com.liferay.ide.hook.core,
+ org.apache.commons.io;bundle-version="2.0.1",
+ org.eclipse.debug.core,
+ org.eclipse.jdt.launching,
+ com.liferay.ide.server.core
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .,
  lib/maven-portal-support.jar
 Export-Package: com.liferay.ide.maven,
- com.liferay.ide.maven.core
+ com.liferay.ide.maven.core,
+ com.liferay.ide.maven.core.aether,
+ com.liferay.ide.maven.core.model

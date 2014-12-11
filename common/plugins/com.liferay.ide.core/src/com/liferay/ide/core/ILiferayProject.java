@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -14,8 +14,9 @@
  *******************************************************************************/
 package com.liferay.ide.core;
 
-import java.util.Properties;
-
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.IPath;
 
 
@@ -27,18 +28,18 @@ public interface ILiferayProject
 
     <T> T adapt( Class<T> adapterType );
 
-    IPath getAppServerPortalDir();
+    IResource findDocrootResource( IPath path );
 
-    String[] getHookSupportedProperties();
+    IFolder getDefaultDocrootFolder();
+
+    IFile getDescriptorFile( String name );
 
     IPath getLibraryPath( String filename );
 
-    String getPortalVersion();
+    String getProperty( String key, String defaultValue );
 
-    Properties getPortletCategories();
+    IFolder getSourceFolder( String classification );
 
-    Properties getPortletEntryCategories();
-
-    IPath[] getUserLibs();
+    IFolder[] getSourceFolders();
 
 }

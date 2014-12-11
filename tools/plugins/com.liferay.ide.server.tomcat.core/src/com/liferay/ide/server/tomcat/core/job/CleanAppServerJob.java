@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -96,10 +96,13 @@ public class CleanAppServerJob extends SDKJob
 
             Map<String, String> appServerProperties = ServerUtil.configureAppServerProperties( project );
 
-            String appServerDir =
+            final String appServerDirKey =
                 ServerUtil.getAppServerPropertyKey( ISDKConstants.PROPERTY_APP_SERVER_DIR, portalTomcatRuntime );
 
-            IStatus status = getSDK().cleanAppServer( project, bundleZipLocation, appServerDir, appServerProperties );
+            final String appServerDir = appServerProperties.get( appServerDirKey );
+
+            IStatus status =
+                getSDK().cleanAppServer( project, bundleZipLocation, appServerDir, appServerProperties, monitor );
 
             assertStatus( status );
 

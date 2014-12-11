@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,6 +15,7 @@
 
 package com.liferay.ide.portlet.ui;
 
+import com.liferay.ide.portlet.ui.jsf.JSFPortletTemplateContextTypeIds;
 import com.liferay.ide.portlet.ui.template.PortletTemplateContextTypeIds;
 
 import java.io.IOException;
@@ -31,9 +32,9 @@ import org.osgi.framework.BundleContext;
 
 /**
  * The activator class controls the plugin life cycle
- * 
+ *
  * @author Greg Amerson
- * @author kamesh.sampath [IDE-405] updated the ImageRegistry
+ * @author Kamesh Sampath [IDE-405] updated the ImageRegistry
  */
 public class PortletUIPlugin extends AbstractUIPlugin
 {
@@ -58,7 +59,7 @@ public class PortletUIPlugin extends AbstractUIPlugin
 
     /**
      * Returns the shared instance
-     * 
+     *
      * @return the shared instance
      */
     public static PortletUIPlugin getDefault()
@@ -68,7 +69,12 @@ public class PortletUIPlugin extends AbstractUIPlugin
 
     public static void logError( Exception e )
     {
-        getDefault().getLog().log( new Status( IStatus.ERROR, PLUGIN_ID, e.getMessage(), e ) );
+        logError( e.getMessage(), e );
+    }
+
+    public static void logError( String msg, Exception e )
+    {
+        getDefault().getLog().log( new Status( IStatus.ERROR, PLUGIN_ID, msg, e ) );
     }
 
     private ContributionContextTypeRegistry fContextTypeRegistry;
@@ -89,6 +95,7 @@ public class PortletUIPlugin extends AbstractUIPlugin
             ContributionContextTypeRegistry registry = new ContributionContextTypeRegistry();
 
             registry.addContextType( PortletTemplateContextTypeIds.NEW );
+            registry.addContextType( JSFPortletTemplateContextTypeIds.NEW );
 
             fContextTypeRegistry = registry;
         }
@@ -102,7 +109,7 @@ public class PortletUIPlugin extends AbstractUIPlugin
         {
             fTemplateStore =
                 new ContributionTemplateStore(
-                    getTemplateContextRegistry(), getPreferenceStore(), "com.liferay.ide.portlet.ui.custom_templates" ); //$NON-NLS-1$
+                    getTemplateContextRegistry(), getPreferenceStore(), "com.liferay.ide.portlet.ui.custom_templates" );
 
             try
             {

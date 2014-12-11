@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -14,7 +14,13 @@
  *******************************************************************************/
 package com.liferay.ide.maven.core;
 
+import com.liferay.ide.core.ILiferayConstants;
+import com.liferay.ide.core.LiferayCore;
+import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.ide.hook.core.dd.HookDescriptorHelper;
+import com.liferay.ide.hook.core.util.HookUtil;
 import com.liferay.ide.project.core.facet.IPluginFacetConstants;
+import com.liferay.ide.project.core.util.ProjectUtil;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -23,6 +29,7 @@ import java.util.List;
 
 import org.apache.maven.model.Plugin;
 import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.util.DirectoryScanner;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -33,6 +40,8 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.core.runtime.preferences.IEclipsePreferences;
+import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.m2e.core.internal.IMavenConstants;
 import org.eclipse.m2e.core.internal.MavenPluginActivator;
 import org.eclipse.m2e.core.internal.markers.IMavenMarkerManager;
@@ -50,6 +59,7 @@ import org.eclipse.osgi.util.NLS;
 import org.eclipse.wst.common.componentcore.ComponentCore;
 import org.eclipse.wst.common.componentcore.internal.StructureEdit;
 import org.eclipse.wst.common.componentcore.internal.WorkbenchComponent;
+import org.eclipse.wst.common.componentcore.internal.util.ComponentUtilities;
 import org.eclipse.wst.common.componentcore.resources.IVirtualComponent;
 import org.eclipse.wst.common.frameworks.datamodel.DataModelFactory;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
@@ -63,11 +73,17 @@ import org.osgi.framework.Version;
 
 /**
  * @author Gregory Amerson
+ * @author Simon Jiang
+ * @author Kuo Zhang
+ * @author Kamesh Sampath
  */
 @SuppressWarnings( "restriction" )
 public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator implements IJavaProjectConfigurator
 {
+
     private static final IPath ROOT_PATH = new Path("/");  //$NON-NLS-1$
+    private static final String MAVEN_WAR_PLUGIN_KEY = "org.apache.maven.plugins:maven-war-plugin";
+    private static final String WAR_SOURCE_FOLDER = "/src/main/webapp"; //$NON-NLS-1$
 
     private IMavenMarkerManager mavenMarkerManager;
 
@@ -81,29 +97,56 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
     private MavenProblemInfo checkValidConfigDir( Plugin liferayMavenPlugin, Xpp3Dom config, String configParam )
     {
         MavenProblemInfo retval = null;
+        String message = null;
+        String value = null;
 
-        if( configParam != null && config != null )
+        if( configParam != null )
         {
-            final Xpp3Dom configNode = config.getChild( configParam );
-
-            if( configNode != null )
+            if( config == null )
             {
-                final String value = configNode.getValue();
+                message = NLS.bind( Msgs.missingConfigValue, configParam );
+            }
+            else
+            {
+                final Xpp3Dom dirNode = config.getChild( configParam );
 
-                if( ! new File( value ).exists() )
+                if( dirNode == null )
                 {
-                    SourceLocation location = SourceLocationHelper.findLocation( liferayMavenPlugin, configParam );
-                    retval = new MavenProblemInfo( NLS.bind( Msgs.invalidConfigValue, configParam, value ),
-                                                   IMarker.SEVERITY_ERROR,
-                                                   location );
+                    message = NLS.bind( Msgs.missingConfigValue, configParam );
+                }
+                else
+                {
+                    value = dirNode.getValue();
+
+                    if( CoreUtil.isNullOrEmpty( value ) )
+                    {
+                        message = NLS.bind( Msgs.emptyConfigValue, configParam );
+                    }
+                    else
+                    {
+                        final File configDir = new File( value );
+
+                        if( ( ! configDir.exists() ) || ( ! configDir.isDirectory() ) )
+                        {
+                            message = NLS.bind( Msgs.unusableConfigValue, configParam, value );
+                        }
+                    }
                 }
             }
+        }
+
+        if( message != null )
+        {
+            final SourceLocation location =
+                SourceLocationHelper.findLocation( liferayMavenPlugin, SourceLocationHelper.CONFIGURATION );
+
+            retval = new MavenProblemInfo( message, IMarker.SEVERITY_WARNING, location );
         }
 
         return retval;
     }
 
-    private MavenProblemInfo checkValidLiferayVersion( Plugin liferayMavenPlugin, Xpp3Dom config )
+    private MavenProblemInfo checkValidVersion( Plugin plugin, Xpp3Dom config, String versionNodeName )
     {
         MavenProblemInfo retval = null;
         Version liferayVersion = null;
@@ -111,16 +154,16 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
 
         if( config != null )
         {
-         // check for liferayVersion
-            final Xpp3Dom liferayVersionNode = config.getChild( ILiferayMavenConstants.PLUGIN_CONFIG_LIFERAY_VERSION );
+            // check for version config node
+            final Xpp3Dom versionNode = config.getChild( versionNodeName );
 
-            if( liferayVersionNode != null )
+            if( versionNode != null )
             {
-                version = MavenUtil.getVersion( liferayVersionNode.getValue() );
+                version = versionNode.getValue();
 
                 try
                 {
-                    liferayVersion = new Version( version );
+                    liferayVersion = new Version(  MavenUtil.getVersion( version ) );
                 }
                 catch( IllegalArgumentException e )
                 {
@@ -129,14 +172,13 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
             }
         }
 
-        if( liferayVersion == null )
+        if( liferayVersion == null || liferayVersion.equals( ILiferayConstants.EMPTY_VERSION ) )
         {
             // could not get valid liferayVersion
-            final SourceLocation location = SourceLocationHelper.findLocation( liferayMavenPlugin, null );
-            final String problemMsg = NLS.bind( Msgs.invalidConfigValue,
-                                                ILiferayMavenConstants.PLUGIN_CONFIG_LIFERAY_VERSION,
-                                                version );
-            retval = new MavenProblemInfo( problemMsg, IMarker.SEVERITY_ERROR, location );
+            final SourceLocation location =
+                SourceLocationHelper.findLocation( plugin, SourceLocationHelper.CONFIGURATION );
+            final String problemMsg = NLS.bind( Msgs.unusableConfigValue, versionNodeName, version );
+            retval = new MavenProblemInfo( problemMsg, IMarker.SEVERITY_WARNING, location );
         }
 
         return retval;
@@ -152,10 +194,11 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
 
         monitor.beginTask( NLS.bind( Msgs.configuringLiferayProject, request.getProject() ), 100 );
 
-        final MavenProject mavenProject = request.getMavenProject();
-        final Plugin liferayMavenPlugin = MavenUtil.getLiferayMavenPlugin( mavenProject );
+        final Plugin liferayMavenPlugin =
+            MavenUtil.getPlugin(
+                request.getMavenProjectFacade(), ILiferayMavenConstants.LIFERAY_MAVEN_PLUGIN_KEY, monitor );
 
-        if( ! shouldConfigure( liferayMavenPlugin ) )
+        if( ! shouldConfigure( liferayMavenPlugin, request ) )
         {
             monitor.done();
             return;
@@ -169,22 +212,21 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
 
         monitor.worked( 25 );
 
-        final List<MavenProblemInfo> errors = findLiferayMavenPluginProblems( project, mavenProject );
+        final MavenProject mavenProject = request.getMavenProject();
+        final List<MavenProblemInfo> errors = findLiferayMavenPluginProblems( project, request, monitor );
 
         if( errors.size() > 0 )
         {
             try
             {
                 this.markerManager.addErrorMarkers( pomFile,
-                                                    ILiferayMavenConstants.LIFERAY_MAVEN_MARKER_CONFIGURATION_ERROR_ID,
+                                                    ILiferayMavenConstants.LIFERAY_MAVEN_MARKER_CONFIGURATION_WARNING_ID,
                                                     errors );
             }
             catch( CoreException e )
             {
                 // no need to log this error its just best effort
             }
-
-            return;
         }
 
         monitor.worked( 25 );
@@ -193,7 +235,7 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
 
         if( shouldInstallNewLiferayFacet( facetedProject ) )
         {
-            installProblem = installNewLiferayFacet( facetedProject, mavenProject, monitor );
+            installProblem = installNewLiferayFacet( facetedProject, request, monitor );
         }
 
         monitor.worked( 25 );
@@ -201,7 +243,7 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
         if( installProblem != null )
         {
             this.markerManager.addMarker( pomFile,
-                                          ILiferayMavenConstants.LIFERAY_MAVEN_MARKER_CONFIGURATION_ERROR_ID,
+                                          ILiferayMavenConstants.LIFERAY_MAVEN_MARKER_CONFIGURATION_WARNING_ID,
                                           installProblem.getMessage(),
                                           installProblem.getLocation().getLineNumber(),
                                           IMarker.SEVERITY_WARNING );
@@ -210,7 +252,49 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
         {
             final String pluginType = MavenUtil.getLiferayMavenPluginType( mavenProject );
 
-            if( ILiferayMavenConstants.PLUGIN_CONFIG_THEME_TYPE.equals( pluginType ) )
+            // IDE-817 we need to mak sure that on deployment it will have the correct suffix for project name
+            final IVirtualComponent projectComponent = ComponentCore.createComponent( project );
+
+            try
+            {
+                if( projectComponent != null )
+                {
+                    final String deployedName = projectComponent.getDeployedName();
+
+                    final String pluginTypeSuffix = "-" + pluginType;
+
+                    final String deployedFileName = project.getName() + pluginTypeSuffix; //$NON-NLS-1$
+
+                    if( deployedName == null || ( deployedName != null && ! deployedName.endsWith( pluginTypeSuffix ) ) )
+                    {
+                        configureDeployedName( project, deployedFileName );
+                    }
+
+                    final String oldContextRoot = ComponentUtilities.getServerContextRoot( project );
+
+                    if( oldContextRoot == null || ( oldContextRoot != null && ! oldContextRoot.endsWith( pluginTypeSuffix ) ) )
+                    {
+
+                        final IEclipsePreferences prefs = InstanceScope.INSTANCE.getNode( LiferayMavenCore.PLUGIN_ID );
+
+                        boolean setMavenPluginSuffix =
+                            prefs.getBoolean( LiferayMavenCore.PREF_ADD_MAVEN_PLUGIN_SUFFIX, false );
+
+                        if( setMavenPluginSuffix )
+                        {
+                            ComponentUtilities.setServerContextRoot( project, deployedFileName );
+                        }
+
+                    }
+                }
+            }
+            catch( Exception e )
+            {
+                LiferayMavenCore.logError(
+                    "Unable to configure deployed name for project " + project.getName(), e );
+            }
+
+            if( ILiferayMavenConstants.THEME_PLUGIN_TYPE.equals( pluginType ) )
             {
                 final IVirtualComponent component = ComponentCore.createComponent( project, true );
 
@@ -225,6 +309,32 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
 
                     // add a link to our m2e-liferay/theme-resources folder into deployment assembly
                     WTPProjectsUtil.insertLinkBefore(project, themeFolder, warPath, ROOT_PATH, monitor);
+                }
+            }
+        }
+
+        if ( project != null && ProjectUtil.isHookProject( project ) )
+        {
+            final HookDescriptorHelper hookDescriptor = new HookDescriptorHelper( project );
+            final String customJSPFolder = hookDescriptor.getCustomJSPFolder( null );
+
+            if ( customJSPFolder != null )
+            {
+                final IFolder docFolder = LiferayCore.create( project ).getDefaultDocrootFolder();
+
+                if ( docFolder != null )
+                {
+                    final IPath newPath = Path.fromOSString( customJSPFolder );
+                    final IPath pathValue = docFolder.getFullPath().append( newPath );
+
+                    final boolean disableCustomJspValidation =
+                        LiferayMavenCore.getPreferenceBoolean( LiferayMavenCore.PREF_DISABLE_CUSTOM_JSP_VALIDATION );
+
+                    if( disableCustomJspValidation )
+                    {
+                        HookUtil.configureJSPSyntaxValidationExclude(
+                            project, project.getFolder( pathValue.makeRelativeTo( project.getFullPath() ) ), true );
+                    }
                 }
             }
         }
@@ -276,47 +386,60 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
     {
     }
 
-    private List<MavenProblemInfo> findLiferayMavenPluginProblems( IProject project, MavenProject mavenProject )
+    private List<MavenProblemInfo> findLiferayMavenPluginProblems( IProject project,
+                                                                   ProjectConfigurationRequest request,
+                                                                   IProgressMonitor monitor ) throws CoreException
     {
-        final List<MavenProblemInfo> errors = new ArrayList<MavenProblemInfo>();
+        final List<MavenProblemInfo> warnings = new ArrayList<MavenProblemInfo>();
 
         // first check to make sure that the AppServer* properties are available and pointed to valid location
-        final Plugin liferayMavenPlugin = MavenUtil.getLiferayMavenPlugin( mavenProject );
+        final Plugin liferayMavenPlugin =
+            MavenUtil.getPlugin(
+                request.getMavenProjectFacade(), ILiferayMavenConstants.LIFERAY_MAVEN_PLUGIN_KEY, monitor );
 
         if( liferayMavenPlugin != null )
         {
             final Xpp3Dom config = (Xpp3Dom) liferayMavenPlugin.getConfiguration();
 
-            final MavenProblemInfo valueProblemInfo = checkValidLiferayVersion( liferayMavenPlugin, config );
+            final MavenProblemInfo validLiferayProblemInfo =
+                checkValidVersion( liferayMavenPlugin, config, ILiferayMavenConstants.PLUGIN_CONFIG_LIFERAY_VERSION );
 
-            if( valueProblemInfo != null )
+            if( validLiferayProblemInfo != null )
             {
-                errors.add( valueProblemInfo );
+                warnings.add( validLiferayProblemInfo );
+            }
+
+            final Version mavenPluginVersion = new Version( MavenUtil.getVersion( liferayMavenPlugin.getVersion() ) );
+
+            if( mavenPluginVersion == null || mavenPluginVersion.equals( ILiferayConstants.EMPTY_VERSION ) )
+            {
+                // could not get valid version for liferaymavenPlugin
+                final SourceLocation location = SourceLocationHelper.findLocation( liferayMavenPlugin, "version" );
+                final String problemMsg =
+                    NLS.bind( Msgs.invalidVersion, "liferay-maven-plugin", liferayMavenPlugin.getVersion() );
+                final MavenProblemInfo versionProblem =
+                    new MavenProblemInfo( problemMsg, IMarker.SEVERITY_WARNING, location );
+                warnings.add( versionProblem );
             }
 
             final String[] configDirParams = new String[]
             {
-                ILiferayMavenConstants.PLUGIN_CONFIG_APP_AUTO_DEPLOY_DIR,
-                ILiferayMavenConstants.PLUGIN_CONFIG_APP_SERVER_CLASSES_PORTAL_DIR,
-                ILiferayMavenConstants.PLUGIN_CONFIG_APP_SERVER_DEPLOY_DIR,
-                ILiferayMavenConstants.PLUGIN_CONFIG_APP_SERVER_LIB_GLOBAL_DIR,
-                ILiferayMavenConstants.PLUGIN_CONFIG_APP_SERVER_LIB_PORTAL_DIR,
                 ILiferayMavenConstants.PLUGIN_CONFIG_APP_SERVER_PORTAL_DIR,
-                ILiferayMavenConstants.PLUGIN_CONFIG_APP_SERVER_TLD_PORTAL_DIR,
             };
 
             for( final String configParam : configDirParams )
             {
-                final MavenProblemInfo configProblemInfo = checkValidConfigDir( liferayMavenPlugin, config, configParam );
+                final MavenProblemInfo configProblemInfo =
+                    checkValidConfigDir( liferayMavenPlugin, config, configParam );
 
                 if( configProblemInfo != null )
                 {
-                    errors.add( configProblemInfo );
+                    warnings.add( configProblemInfo );
                 }
             }
         }
 
-        return errors;
+        return warnings;
     }
 
     private IProjectFacetVersion getLiferayProjectFacet( IFacetedProject facetedProject )
@@ -369,6 +492,11 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
             newFacet = IPluginFacetConstants.LIFERAY_THEME_PROJECT_FACET.getDefaultVersion();
             dataModel = new MavenThemePluginFacetInstallProvider();
         }
+        else if( ILiferayMavenConstants.WEB_PLUGIN_TYPE.equals( pluginType ) )
+        {
+            newFacet = IPluginFacetConstants.LIFERAY_WEB_PROJECT_FACET.getDefaultVersion();
+            dataModel = new MavenWebPluginFacetInstallProvider();
+        }
 
         if( newFacet != null )
         {
@@ -380,13 +508,15 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
     }
 
     private MavenProblemInfo installNewLiferayFacet( IFacetedProject facetedProject,
-                                                     MavenProject mavenProject,
-                                                     IProgressMonitor monitor )
+                                                     ProjectConfigurationRequest request,
+                                                     IProgressMonitor monitor ) throws CoreException
     {
         MavenProblemInfo retval = null;
 
-        final String pluginType = MavenUtil.getLiferayMavenPluginType( mavenProject );
-        final Plugin liferayMavenPlugin = MavenUtil.getLiferayMavenPlugin( mavenProject );
+        final String pluginType = MavenUtil.getLiferayMavenPluginType( request.getMavenProject() );
+        final Plugin liferayMavenPlugin =
+            MavenUtil.getPlugin(
+                request.getMavenProjectFacade(), ILiferayMavenConstants.LIFERAY_MAVEN_PLUGIN_KEY, monitor );
         final Action action = getNewLiferayFacetInstallAction( pluginType );
 
         if( action != null )
@@ -397,7 +527,8 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
             }
             catch( Exception e )
             {
-                final SourceLocation location = SourceLocationHelper.findLocation( liferayMavenPlugin, null );
+                final SourceLocation location =
+                    SourceLocationHelper.findLocation( liferayMavenPlugin, SourceLocationHelper.CONFIGURATION );
                 final String problemMsg = NLS.bind( Msgs.facetInstallError,
                                                     pluginType,
                                                     e.getCause() != null ? e.getCause().getMessage() : e.getMessage() );
@@ -408,31 +539,6 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
                 LiferayMavenCore.logError(
                     "Unable to install liferay facet " + action.getProjectFacetVersion(), e.getCause() ); //$NON-NLS-1$
             }
-
-            final IProject project = facetedProject.getProject();
-
-            try
-            {
-                // IDE-817 we need to mak sure that on deployment it will have the correct suffix for project name
-                final IVirtualComponent projectComponent = ComponentCore.createComponent( project );
-
-                if( projectComponent != null )
-                {
-                    final String deployedName = projectComponent.getDeployedName();
-
-                    if( deployedName == null || ( deployedName != null && !deployedName.endsWith( pluginType ) ) )
-                    {
-                        final String deployedFileName = project.getName() + "-" + pluginType; //$NON-NLS-1$
-
-                        configureDeployedName( project, deployedFileName );
-                        projectComponent.setMetaProperty( "context-root", deployedFileName ); //$NON-NLS-1$
-                    }
-                }
-            }
-            catch( Exception e )
-            {
-                LiferayMavenCore.logError( "Unable to configure component for liferay deployment." + project.getName(), e ); //$NON-NLS-1$
-            }
         }
 
         return retval;
@@ -441,12 +547,37 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
     private void removeLiferayMavenMarkers( IProject project ) throws CoreException
     {
         this.mavenMarkerManager.deleteMarkers( project,
-                                               ILiferayMavenConstants.LIFERAY_MAVEN_MARKER_CONFIGURATION_ERROR_ID );
+                                               ILiferayMavenConstants.LIFERAY_MAVEN_MARKER_CONFIGURATION_WARNING_ID );
     }
 
-    private boolean shouldConfigure( Plugin liferayMavenPlugin )
+    /*
+     * IDE-1489 when no liferay maven plugin is found the project will be scanned for liferay specific files
+     */
+    private boolean shouldConfigure( Plugin liferayMavenPlugin, ProjectConfigurationRequest request )
     {
-        return liferayMavenPlugin != null;
+        final IProject project = request.getProject();
+        final MavenProject mavenProject = request.getMavenProject();
+
+        boolean configureAsLiferayPlugin = liferayMavenPlugin != null;
+
+        final IFolder warSourceDir = warSourceDirectory( project, mavenProject );
+
+        if( !configureAsLiferayPlugin && warSourceDir != null )
+        {
+
+            final IPath baseDir = warSourceDir.getRawLocation();
+            final String[] includes = { "**/liferay*.xml", "**/liferay*.properties" };
+
+            final DirectoryScanner dirScanner = new DirectoryScanner();
+            dirScanner.setBasedir( baseDir.toFile() );
+            dirScanner.setIncludes( includes );
+            dirScanner.scan();
+
+            final String[] liferayProjectFiles = dirScanner.getIncludedFiles();
+            configureAsLiferayPlugin = liferayProjectFiles != null && liferayProjectFiles.length > 0;
+        }
+
+        return configureAsLiferayPlugin;
     }
 
     private boolean shouldInstallNewLiferayFacet( IFacetedProject facetedProject )
@@ -454,11 +585,45 @@ public class LiferayMavenProjectConfigurator extends AbstractProjectConfigurator
         return getLiferayProjectFacet( facetedProject ) == null;
     }
 
+    private IFolder warSourceDirectory( final IProject project, final MavenProject mavenProject )
+    {
+        IFolder retval = null;
+
+        final Xpp3Dom warPluginConfiguration =
+            (Xpp3Dom) mavenProject.getPlugin( MAVEN_WAR_PLUGIN_KEY ).getConfiguration();
+
+        if( warPluginConfiguration != null )
+        {
+            final Xpp3Dom[] warSourceDirs = warPluginConfiguration.getChildren( "warSourceDirectory" );
+
+            if( warSourceDirs != null && warSourceDirs.length > 0 )
+            {
+                final String resourceLocation = warSourceDirs[0].getValue();
+                retval = project.getFolder( resourceLocation );
+            }
+        }
+
+        if( retval == null )
+        {
+            /*
+             * if no explicit warSourceDirectory set we assume the default warSource directory
+             * ${basedir}/src/main/webapp refer to http://maven.apache.org/plugins/maven-war-plugin/war-mojo.html
+             * for more information
+             */
+            retval = project.getFolder( WAR_SOURCE_FOLDER );
+        }
+
+        return retval;
+    }
+
     private static class Msgs extends NLS
     {
         public static String configuringLiferayProject;
+        public static String emptyConfigValue;
         public static String facetInstallError;
-        public static String invalidConfigValue;
+        public static String invalidVersion;
+        public static String missingConfigValue;
+        public static String unusableConfigValue;
 
         static
         {

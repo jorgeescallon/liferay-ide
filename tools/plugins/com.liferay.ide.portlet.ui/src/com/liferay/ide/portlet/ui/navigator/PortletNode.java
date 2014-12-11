@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -21,9 +21,9 @@ package com.liferay.ide.portlet.ui.navigator;
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.portlet.core.model.Portlet;
 
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.Value;
 import org.eclipse.sapphire.modeling.CapitalizationType;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.Value;
 
 /**
  * @author <a href="mailto:kamesh.sampath@hotmail.com">Kamesh Sampath</a>
@@ -54,13 +54,13 @@ public class PortletNode
         {
             final Value<String> label = this.portlet.getPortletName();
 
-            retval = label.getLocalizedText( CapitalizationType.TITLE_STYLE, false );
+            retval = label.localized( CapitalizationType.TITLE_STYLE, false );
         }
 
         return retval;
     }
 
-    public IModelElement getModel()
+    public Element getModel()
     {
         return this.portlet;
     }

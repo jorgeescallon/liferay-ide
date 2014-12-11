@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -36,6 +36,7 @@ import org.eclipse.wst.common.project.facet.core.IProjectFacetVersion;
 
 /**
  * @author Cindy Li
+ * @author Kuo Zhang
  */
 public class ValidProjectChecker
 {
@@ -57,6 +58,7 @@ public class ValidProjectChecker
     protected boolean isJsfPortlet = false;
     protected String validProjectTypes = null;
     protected String wizardId = null;
+    protected String wizardName = null;
 
     public ValidProjectChecker( String wizardId )
     {
@@ -107,19 +109,22 @@ public class ValidProjectChecker
             hasValidProjectTypes = hasJsfFacet && hasValidProjectTypes;
         }
 
-        if( !hasValidProjectTypes )
+        if( ! hasValidProjectTypes )
         {
             final Shell activeShell = Display.getDefault().getActiveShell();
-            Boolean openNewLiferayProjectWizard =
-                MessageDialog.openQuestion( activeShell, Msgs.newElement, Msgs.noSuitableLiferayProjects );
+
+            Boolean openNewLiferayProjectWizard = 
+                MessageDialog.openQuestion( activeShell, NLS.bind( Msgs.newElement, wizardName ),
+                    NLS.bind( Msgs.noSuitableLiferayProjects, wizardName ) );
 
             if( openNewLiferayProjectWizard )
             {
-                Action[] actions = NewPluginProjectDropDownAction.getNewProjectActions();
+                final Action defaultAction = NewPluginProjectDropDownAction.getDefaultAction();
 
-                if( actions.length > 0 )
+                if( defaultAction != null )
                 {
-                    actions[0].run();
+                    defaultAction.run();
+
                     this.checkValidProjectTypes();
                 }
             }
@@ -170,6 +175,7 @@ public class ValidProjectChecker
                     // getValidProjectTypesFromConfig( element )!=null && isLiferayArtifactWizard(element,
                     // "liferay_artifact")
                     setValidProjectTypes( getValidProjectTypesFromConfig( element ) );
+                    wizardName = element.getAttribute( ATT_NAME );
                     break;
                 }
             }

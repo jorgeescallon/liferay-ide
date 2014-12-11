@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,12 +17,19 @@ package com.liferay.ide.maven.core;
 
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.MultiStatus;
+import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Plugin;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.preferences.DefaultScope;
+import org.eclipse.core.runtime.preferences.IEclipsePreferences;
+import org.eclipse.core.runtime.preferences.IScopeContext;
+import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.osgi.framework.BundleContext;
 
 /**
  * @author Gregory Amerson
+ * @author Simon Jiang
+ * @author Eric Min
  */
 public class LiferayMavenCore extends Plugin
 {
@@ -32,6 +39,34 @@ public class LiferayMavenCore extends Plugin
 
     // The plug-in ID
     public static final String PLUGIN_ID = "com.liferay.ide.maven.core"; //$NON-NLS-1$
+
+    // set maven project context root with suffix
+    public static final String PREF_ADD_MAVEN_PLUGIN_SUFFIX = "add-maven-plugin-suffix";
+
+    public static final String PREF_ARCHETYPE_GAV_EXT = "archetype-gav-ext";
+    public static final String PREF_ARCHETYPE_GAV_LIFERAY_FACES_ALLOY = "archetype-gav-liferay-faces-alloy";
+    public static final String PREF_ARCHETYPE_GAV_HOOK = "archetype-gav-hook";
+    public static final String PREF_ARCHETYPE_GAV_ICEFACES = "archetype-gav-icefaces";
+    public static final String PREF_ARCHETYPE_GAV_JSF = "archetype-gav-jsf";
+    public static final String PREF_ARCHETYPE_GAV_LAYOUTTPL = "archetype-gav-layouttpl";
+    public static final String PREF_ARCHETYPE_GAV_MVC = "archetype-gav-mvc";
+    public static final String PREF_ARCHETYPE_GAV_PRIMEFACES = "archetype-gav-primefaces";
+    public static final String PREF_ARCHETYPE_GAV_RICHFACES = "archetype-gav-richfaces";
+    public static final String PREF_ARCHETYPE_GAV_SERVICEBUILDER = "archetype-gav-servicebuilder";
+    public static final String PREF_ARCHETYPE_GAV_THEME = "archetype-gav-theme";
+    public static final String PREF_ARCHETYPE_GAV_VAADIN = "archetype-gav-vaadin";
+    public static final String PREF_ARCHETYPE_GAV_WEB = "archetype-gav-web";
+
+    // The key of disable customJspValidation checking
+    public static final String PREF_DISABLE_CUSTOM_JSP_VALIDATION = "disable-custom-jsp-validation";
+
+    private static final IScopeContext[] scopes =
+                    new IScopeContext[] { InstanceScope.INSTANCE, DefaultScope.INSTANCE };
+
+    public static Status createErrorStatus( String msg )
+    {
+        return new Status( IStatus.ERROR, PLUGIN_ID, msg, null );
+    }
 
     public static Status createErrorStatus( String msg, Throwable t )
     {
@@ -57,6 +92,21 @@ public class LiferayMavenCore extends Plugin
     public static LiferayMavenCore getDefault()
     {
         return plugin;
+    }
+
+    public static IEclipsePreferences getDefaultPrefs()
+    {
+        return DefaultScope.INSTANCE.getNode( PLUGIN_ID );
+    }
+
+    public static boolean getPreferenceBoolean( String key )
+    {
+        return Platform.getPreferencesService().getBoolean( PLUGIN_ID, key, false, scopes );
+    }
+
+    public static String getPreferenceString( final String key, final String defaultValue )
+    {
+        return Platform.getPreferencesService().getString( PLUGIN_ID, key, defaultValue, scopes );
     }
 
     public static void log( IStatus status )

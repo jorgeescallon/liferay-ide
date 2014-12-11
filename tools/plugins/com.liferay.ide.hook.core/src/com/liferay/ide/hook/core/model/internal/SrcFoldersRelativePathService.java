@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -11,13 +11,11 @@
  * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
  * details.
  *
- * Contributors:
-
  ******************************************************************************/
 
 package com.liferay.ide.hook.core.model.internal;
 
-import com.liferay.ide.project.core.util.ProjectUtil;
+import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.hook.core.model.Hook;
 
 import java.util.ArrayList;
@@ -25,7 +23,7 @@ import java.util.List;
 
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.sapphire.modeling.IModelElement;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.sapphire.modeling.Path;
 import org.eclipse.sapphire.services.RelativePathService;
 
@@ -35,21 +33,21 @@ import org.eclipse.sapphire.services.RelativePathService;
 public class SrcFoldersRelativePathService extends RelativePathService
 {
 
-    /*
-     * (non-Javadoc)
-     * @see org.eclipse.sapphire.services.RelativePathService#roots()
-     */
     @Override
     public List<Path> roots()
     {
-        List<Path> roots = new ArrayList<Path>();
-        IModelElement modelElement = context( Hook.class );
-        IProject project = modelElement.adapt( IProject.class );
-        IFolder[] folders = ProjectUtil.getSourceFolders( project );
+        final List<Path> roots = new ArrayList<Path>();
+        final Hook hook = context( Hook.class );
 
-        for( IFolder folder : folders )
+        if( hook != null )
         {
-            roots.add( new Path( folder.getLocation().toPortableString() ) );
+            final IProject project = hook.adapt( IProject.class );
+            final List<IFolder> folders = CoreUtil.getSourceFolders( JavaCore.create( project ) );
+
+            for( final IFolder folder : folders )
+            {
+                roots.add( new Path( folder.getLocation().toPortableString() ) );
+            }
         }
 
         return roots;

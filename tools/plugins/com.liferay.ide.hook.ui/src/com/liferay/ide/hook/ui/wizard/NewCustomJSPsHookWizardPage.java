@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,13 +15,14 @@
 
 package com.liferay.ide.hook.ui.wizard;
 
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.hook.core.operation.INewHookDataModelProperties;
 import com.liferay.ide.hook.ui.HookUI;
+import com.liferay.ide.project.ui.wizard.StringArrayTableWizardSectionCallback;
 import com.liferay.ide.ui.util.SWTUtil;
-import com.liferay.ide.ui.wizard.StringArrayTableWizardSectionCallback;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -56,6 +57,7 @@ import org.eclipse.wst.common.frameworks.internal.datamodel.ui.DataModelWizardPa
 
 /**
  * @author Greg Amerson
+ * @author Terry Jia
  */
 @SuppressWarnings( "restriction" )
 public class NewCustomJSPsHookWizardPage extends DataModelWizardPage implements INewHookDataModelProperties
@@ -66,6 +68,10 @@ public class NewCustomJSPsHookWizardPage extends DataModelWizardPage implements 
     protected Button disableJSPFolderValidation;
 
     protected CustomJSPsTableWizardSection jspItemsSection;
+
+    protected Text selectedProject;
+
+    protected Text webRootFolder;
 
     public NewCustomJSPsHookWizardPage( IDataModel dataModel, String pageName )
     {
@@ -97,11 +103,16 @@ public class NewCustomJSPsHookWizardPage extends DataModelWizardPage implements 
 
         if( liferayProject != null )
         {
-            IPath portalDir = liferayProject.getAppServerPortalDir();
+            final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
 
-            if( portalDir != null && portalDir.toFile().exists() )
+            if( portal != null )
             {
-                jspItemsSection.setPortalDir( portalDir.toFile() );
+                final IPath portalDir = portal.getAppServerPortalDir();
+
+                if( portalDir != null && portalDir.toFile().exists() )
+                {
+                    jspItemsSection.setPortalDir( portalDir.toFile() );
+                }
             }
         }
     }
@@ -134,6 +145,7 @@ public class NewCustomJSPsHookWizardPage extends DataModelWizardPage implements 
         SWTUtil.createLabel( composite, SWT.LEAD, Msgs.customJSPFolder, 1 );
 
         customJSPsFolder = SWTUtil.createText( composite, 1 );
+
         this.synchHelper.synchText( customJSPsFolder, CUSTOM_JSPS_FOLDER, null );
 
         Button iconFileBrowse = SWTUtil.createPushButton( composite, Msgs.browse, null );
@@ -148,10 +160,38 @@ public class NewCustomJSPsHookWizardPage extends DataModelWizardPage implements 
         } );
     }
 
+    protected void createSelectedProjectGroup( Composite topComposite )
+    {
+        Composite composite = SWTUtil.createTopComposite( topComposite, 3 );
+
+        GridLayout gl = new GridLayout( 3, false );
+
+        composite.setLayout( gl );
+        composite.setLayoutData( new GridData( SWT.FILL, SWT.CENTER, true, false, 3, 1 ) );
+
+        SWTUtil.createLabel( composite, SWT.LEAD, Msgs.selectedProject, 1 );
+
+        selectedProject = SWTUtil.createText( composite, 2 );
+
+        selectedProject.setEditable( false );
+
+        this.synchHelper.synchText( selectedProject, SELECTED_PROJECT, null );
+
+        SWTUtil.createLabel( composite, SWT.LEAD, Msgs.webRootFolder, 1 );
+
+        webRootFolder = SWTUtil.createText( composite, 2 );
+
+        webRootFolder.setEditable( false );
+
+        this.synchHelper.synchText( webRootFolder, WEB_ROOT_FOLDER, null );
+    }
+
     @Override
     protected Composite createTopLevelComposite( Composite parent )
     {
         Composite topComposite = SWTUtil.createTopComposite( parent, 3 );
+
+        createSelectedProjectGroup( topComposite );
 
         createJSPFolderGroup( topComposite );
 
@@ -192,7 +232,6 @@ public class NewCustomJSPsHookWizardPage extends DataModelWizardPage implements 
     {
         return new ViewerFilter()
         {
-
             public boolean select( Viewer viewer, Object parent, Object element )
             {
                 if( element instanceof IProject )
@@ -204,7 +243,14 @@ public class NewCustomJSPsHookWizardPage extends DataModelWizardPage implements 
                 }
                 else if( element instanceof IFolder )
                 {
-                    return true;
+                    IFolder folder = (IFolder) element;
+
+                    IFolder docrootFolder = LiferayCore.create( folder.getProject() ).getDefaultDocrootFolder();
+
+                    if( docrootFolder.contains( folder ) )
+                    {
+                        return true;
+                    }
                 }
 
                 return false;
@@ -247,12 +293,26 @@ public class NewCustomJSPsHookWizardPage extends DataModelWizardPage implements 
                 {
                     IFolder folder = (IFolder) element;
 
-                    if( folder.equals( CoreUtil.getDocroot( getDataModel().getStringProperty( PROJECT_NAME ) ) ) )
+                    IProject project = CoreUtil.getProject( getDataModel().getStringProperty( PROJECT_NAME ) );
+
+                    IFolder defaultWebappRootFolder = LiferayCore.create( project ).getDefaultDocrootFolder();
+
+                    if( folder.equals( defaultWebappRootFolder ) )
                     {
                         folder = folder.getFolder( "custom_jsps" ); //$NON-NLS-1$
                     }
 
-                    text.setText( folder.getFullPath().toPortableString() );
+                    String defaultWebappRootFolderFullPath = defaultWebappRootFolder.getFullPath().toPortableString();
+                    String folderFullPath = folder.getFullPath().toPortableString();
+
+                    int index = folderFullPath.indexOf( defaultWebappRootFolderFullPath );
+
+                    if( index != -1 )
+                    {
+                        folderFullPath = folderFullPath.substring( index + defaultWebappRootFolderFullPath.length() );
+                    }
+
+                    text.setText( folderFullPath );
                 }
             }
             catch( Exception ex )
@@ -264,6 +324,7 @@ public class NewCustomJSPsHookWizardPage extends DataModelWizardPage implements 
 
     private static class Msgs extends NLS
     {
+
         public static String add;
         public static String browse;
         public static String chooseValidFolder;
@@ -275,6 +336,8 @@ public class NewCustomJSPsHookWizardPage extends DataModelWizardPage implements 
         public static String jspFilePath;
         public static String jspFilesOverride;
         public static String remove;
+        public static String selectedProject;
+        public static String webRootFolder;
 
         static
         {

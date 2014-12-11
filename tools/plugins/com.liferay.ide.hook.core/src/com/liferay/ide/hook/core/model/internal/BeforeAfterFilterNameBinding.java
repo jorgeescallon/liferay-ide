@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -65,8 +65,8 @@ public class BeforeAfterFilterNameBinding extends XmlValueBindingImpl
 
     private BeforeAfterFilterType getFilterType()
     {
-        ServletFilterMapping servletFilterMapping = element().nearest( ServletFilterMapping.class );
-        return servletFilterMapping.getBeforeAfterFilterType().getContent( true );
+        ServletFilterMapping servletFilterMapping = property().nearest( ServletFilterMapping.class );
+        return servletFilterMapping.getBeforeAfterFilterType().content( true );
     }
 
 }

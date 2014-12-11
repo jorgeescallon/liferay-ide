@@ -42,6 +42,7 @@
             id="com.liferay.ide.service.ui.service.popup"
             objectClass="org.eclipse.core.resources.IResource">
          <action
+               definitionId="com.liferay.ide.service.ui.buildWSDD"
                class="com.liferay.ide.service.ui.actions.BuildWSDDAction"
                enablesFor="1"
                icon="icons/e16/service.png"
@@ -51,6 +52,7 @@
                tooltip="%build.web.services.descriptor.action.tooltip">
          </action>
          <action
+               definitionId="com.liferay.ide.service.ui.buildService"
                class="com.liferay.ide.service.ui.actions.BuildServicesAction"
                enablesFor="1"
                icon="icons/e16/service.png"
@@ -72,13 +74,17 @@
    <extension
          point="org.eclipse.ui.editors">
       <editor
-            class="com.liferay.ide.service.ui.editor.ServiceBuilderEditor"
             contributorClass="com.liferay.ide.service.ui.editor.ServiceBuilderEditorActionBarContributor"
             default="true"
+            filenames="service.xml"
             icon="icons/e16/service.png"
             id="com.liferay.ide.eclipse.service.ui.editor.servicebuilder"
             name="%service.editor.name"
             symbolicFontName="org.eclipse.wst.sse.ui.textfont">
+         <class class="com.liferay.ide.service.ui.editor.ServiceBuilderEditor">
+             <parameter name="sdef" value="com.liferay.ide.service.ui.editor.ServiceBuilderEditor"/>
+             <parameter name="pageName" value="Overview"/>
+         </class>
         <contentTypeBinding
                contentTypeId="com.liferay.ide.service.core.servicebuildercontent">
          </contentTypeBinding>
@@ -93,6 +99,66 @@
             properties="hasServiceFile"
             type="org.eclipse.core.resources.IResource">
       </propertyTester>
+   </extension>
+      <extension
+            point="org.eclipse.ui.editors.templates">
+         <include
+               file="templates/service-builder-xml-templates.xml">
+         </include>
+    </extension>
+
+    <extension
+         point="org.eclipse.ui.workbench.texteditor.hyperlinkDetectors">
+         <hyperlinkDetector
+               class="com.liferay.ide.service.ui.editor.ServiceMethodHyperlinkDetector"
+               description="Locates real implementation and wrapper methods for service util class methods"
+               id="com.liferay.ide.service.ui.ServiceMethodHyperlinkDetector"
+               name="Open Service"
+               targetId="org.eclipse.jdt.ui.javaCode">
+      </hyperlinkDetector>
+   </extension>
+
+   <extension
+         point="org.eclipse.ui.commands">
+        <command
+            categoryId="com.liferay.ide.project.ui.handlers"
+            description="Run the build-service command"
+            id="com.liferay.ide.service.ui.buildService"
+            name="Build Service">
+        </command>
+        <command
+            categoryId="com.liferay.ide.project.ui.handlers"
+            description="Run the build-wsdd command"
+            id="com.liferay.ide.service.ui.buildWSDD"
+            name="Build WSDD">
+        </command>
+   </extension>
+
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            class="com.liferay.ide.service.ui.handlers.BuildServiceHandler"
+            commandId="com.liferay.ide.service.ui.buildService">
+      </handler>
+      <handler
+            class="com.liferay.ide.service.ui.handlers.BuildWSDDHandler"
+            commandId="com.liferay.ide.service.ui.buildWSDD">
+      </handler>
+   </extension>
+   <extension
+         point="org.eclipse.ui.bindings">
+      <key
+            commandId="com.liferay.ide.service.ui.buildService"
+            contextId="org.eclipse.ui.contexts.window"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+            sequence="M1+M3+V">
+      </key>
+      <key
+            commandId="com.liferay.ide.service.ui.buildWSDD"
+            contextId="org.eclipse.ui.contexts.window"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+            sequence="M1+M3+W">
+      </key>
    </extension>
 
 </plugin>

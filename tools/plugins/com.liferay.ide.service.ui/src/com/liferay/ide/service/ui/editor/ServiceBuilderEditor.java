@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -24,9 +24,6 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.sapphire.ui.def.DefinitionLoader;
-import org.eclipse.sapphire.ui.swt.gef.SapphireDiagramEditor;
 import org.eclipse.sapphire.ui.swt.xml.editor.SapphireEditorForXml;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IStorageEditorInput;
@@ -39,39 +36,21 @@ import org.eclipse.ui.part.FileEditorInput;
  */
 public class ServiceBuilderEditor extends SapphireEditorForXml
 {
-    private SapphireDiagramEditor pageDiagram;
-
     public ServiceBuilderEditor()
     {
-        super
-        (
-            ServiceBuilder6xx.TYPE,
-            DefinitionLoader
-                .sdef( ServiceBuilderEditor.class )
-                .page( "serviceBuilderPage" )//$NON-NLS-1$
-        );
+        super( ServiceBuilder6xx.TYPE, null );
+    }
+
+    @Override
+    protected void createFormPages() throws PartInitException
+    {
+        addDeferredPage( 1, "Overview", "serviceBuilderPage" );
     }
 
     @Override
     protected void createDiagramPages() throws PartInitException
     {
-        this.pageDiagram = new SapphireDiagramEditor
-        (
-            this, this.getModelElement(),
-            DefinitionLoader
-                .sdef( ServiceBuilderEditor.class )
-                .page( "diagramPage" ) //$NON-NLS-1$
-        );
-
-        addEditorPage( 0, this.pageDiagram );
-    }
-
-    @Override
-    public void doSave( final IProgressMonitor monitor )
-    {
-        super.doSave( monitor );
-
-        this.pageDiagram.doSave( monitor );
+        addDeferredPage( 2, "Diagram", "diagramPage" );
     }
 
     public InputStream getFileContents() throws CoreException, MalformedURLException, IOException

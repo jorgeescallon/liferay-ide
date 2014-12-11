@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -18,7 +18,7 @@ package com.liferay.ide.theme.core.operation;
 import com.liferay.ide.core.ILiferayConstants;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.NodeUtil;
-import com.liferay.ide.project.core.util.LiferayDescriptorHelper;
+import com.liferay.ide.project.core.descriptor.LiferayDescriptorHelper;
 import com.liferay.ide.theme.core.ThemeCore;
 
 import java.io.ByteArrayInputStream;
@@ -45,6 +45,7 @@ import org.w3c.dom.NodeList;
 @SuppressWarnings( "restriction" )
 public class ThemeDescriptorHelper extends LiferayDescriptorHelper
 {
+    private static final String DESCRIPTOR_FILE = ILiferayConstants.LIFERAY_LOOK_AND_FEEL_XML_FILE;
 
     public static final String DEFUALT_FILE_TEMPLATE =
         "<?xml version=\"1.0\"?>\n<!DOCTYPE look-and-feel PUBLIC \"-//Liferay//DTD Look and Feel {0}//EN\" " + //$NON-NLS-1$
@@ -54,6 +55,12 @@ public class ThemeDescriptorHelper extends LiferayDescriptorHelper
     public ThemeDescriptorHelper( IProject project )
     {
         super( project );
+    }
+
+    @Override
+    protected void addDescriptorOperations()
+    {
+        // currently, no descriptor operations for this descriptor
     }
 
     public void createDefaultFile( IContainer container, String version, String id, String name, String themeType )
@@ -100,9 +107,15 @@ public class ThemeDescriptorHelper extends LiferayDescriptorHelper
         }
     }
 
+    @Override
+    public IFile getDescriptorFile()
+    {
+        return super.getDescriptorFile( DESCRIPTOR_FILE );
+    }
+
     protected void setTemplateExtension( IFile lookAndFeelFile, final String extension )
     {
-        IStatus status = new DOMModelEditOperation( lookAndFeelFile )
+        new DOMModelEditOperation( lookAndFeelFile )
         {
             protected void createDefaultFile()
             {

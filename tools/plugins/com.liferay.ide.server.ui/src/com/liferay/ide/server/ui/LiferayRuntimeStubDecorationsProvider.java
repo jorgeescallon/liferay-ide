@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * The contents of this file are subject to the terms of the Liferay Enterprise
  * Subscription License ("License"). You may not use this file except in
@@ -35,8 +35,8 @@ public class LiferayRuntimeStubDecorationsProvider implements IAdapterFactory
 
         public ImageDescriptor getIcon()
         {
-            return LiferayServerUIPlugin.imageDescriptorFromPlugin(
-                LiferayServerUIPlugin.PLUGIN_ID, "icons/e16/server.png" ); //$NON-NLS-1$
+            return LiferayServerUI.imageDescriptorFromPlugin(
+                LiferayServerUI.PLUGIN_ID, "icons/e16/server.png" ); //$NON-NLS-1$
         }
 
     }

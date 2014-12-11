@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -21,6 +21,7 @@ import com.liferay.ide.server.core.LiferayServerCore;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -33,6 +34,7 @@ import org.eclipse.osgi.util.NLS;
 
 /**
  * @author Greg Amerson
+ * @author Terry Jia
  */
 public class SocketUtil
 {
@@ -59,7 +61,7 @@ public class SocketUtil
         }
         catch( Exception e )
         {
-            status = LiferayServerCore.createErrorStatus( Msgs.notConnect );
+            status = LiferayServerCore.error( Msgs.notConnect );
             // e.printStackTrace();
         }
         finally
@@ -130,6 +132,38 @@ public class SocketUtil
         }
 
         return null;
+    }
+
+    public static boolean isPortAvailable( final String port )
+    {
+        ServerSocket serverSocket = null;
+
+        try
+        {
+            serverSocket = new ServerSocket();
+
+            serverSocket.bind( new InetSocketAddress( Integer.parseInt( port ) ) );
+
+            return true;
+        }
+        catch( IOException e )
+        {
+        }
+        finally
+        {
+            if( serverSocket != null )
+            {
+                try
+                {
+                    serverSocket.close();
+                }
+                catch( IOException e )
+                {
+                }
+            }
+        }
+
+        return false;
     }
 
     private static class Msgs extends NLS

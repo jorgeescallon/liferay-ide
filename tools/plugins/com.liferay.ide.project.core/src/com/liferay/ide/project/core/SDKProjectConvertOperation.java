@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,6 +15,7 @@
 
 package com.liferay.ide.project.core;
 
+import com.liferay.ide.project.core.util.ProjectUtil;
 import com.liferay.ide.project.core.util.SDKPluginFacetUtil;
 import com.liferay.ide.sdk.core.SDK;
 import com.liferay.ide.sdk.core.SDKManager;
@@ -121,7 +122,9 @@ public class SDKProjectConvertOperation extends AbstractDataModelOperation
 
         final IRuntime runtime = (IRuntime) model.getProperty( IFacetProjectCreationDataModelProperties.FACET_RUNTIME );
 
-        SDKPluginFacetUtil.configureProjectAsPlugin( fpwc, runtime, sdkLocation );
+        final String pluginType = ProjectUtil.guessPluginType( fpwc );
+
+        SDKPluginFacetUtil.configureProjectAsPlugin( fpwc, runtime, pluginType, sdkLocation, record );
 
         fpwc.commitChanges( monitor );
 
@@ -142,7 +145,7 @@ public class SDKProjectConvertOperation extends AbstractDataModelOperation
             }
             catch( CoreException e )
             {
-                return LiferayProjectCore.createErrorStatus( e );
+                return ProjectCore.createErrorStatus( e );
             }
         }
         convertedProject = project;

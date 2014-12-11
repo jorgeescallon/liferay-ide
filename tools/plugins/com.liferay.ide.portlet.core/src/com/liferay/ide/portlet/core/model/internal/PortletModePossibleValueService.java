@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -21,19 +21,19 @@ import com.liferay.ide.portlet.core.model.CustomPortletMode;
 import com.liferay.ide.portlet.core.model.PortletApp;
 
 import java.util.List;
-import java.util.SortedSet;
+import java.util.Set;
 
-import org.eclipse.sapphire.services.PossibleValuesService;
+import org.eclipse.sapphire.PossibleValuesService;
 
 /**
- * @author <a href="mailto:kamesh.sampath@accenture.com">Kamesh Sampath</a>
+ * @author Kamesh Sampath
  */
 public class PortletModePossibleValueService extends PossibleValuesService
 {
 
     // provided by Portlet Specification and Liferay
-    private static final String[] DEFAULT_MODES = 
-    { 
+    private static final String[] DEFAULT_MODES =
+    {
         "view",  //$NON-NLS-1$
         "edit",  //$NON-NLS-1$
         "help",  //$NON-NLS-1$
@@ -50,7 +50,7 @@ public class PortletModePossibleValueService extends PossibleValuesService
      * @see org.eclipse.sapphire.modeling.PossibleValuesService#fillPossibleValues(java.util.SortedSet)
      */
     @Override
-    protected void fillPossibleValues( SortedSet<String> values )
+    protected void compute( Set<String> values )
     {
         PortletApp portletApp = context( PortletApp.class );
 
@@ -64,7 +64,7 @@ public class PortletModePossibleValueService extends PossibleValuesService
 
         for( CustomPortletMode iCustomPortletMode : customPortletModes )
         {
-            String customPortletMode = iCustomPortletMode.getPortletMode().getText( false );
+            String customPortletMode = iCustomPortletMode.getPortletMode().text( false );
 
             if( customPortletMode != null )
             {
@@ -75,9 +75,4 @@ public class PortletModePossibleValueService extends PossibleValuesService
 
     }
 
-    @Override
-    public boolean isCaseSensitive()
-    {
-        return false;
-    }
 }

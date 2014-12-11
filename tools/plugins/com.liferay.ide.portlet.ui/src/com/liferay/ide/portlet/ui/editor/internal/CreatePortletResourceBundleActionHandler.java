@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -22,6 +22,7 @@ import com.liferay.ide.core.model.internal.GenericResourceBundlePathService;
 import com.liferay.ide.portlet.core.model.Portlet;
 import com.liferay.ide.portlet.core.model.PortletInfo;
 import com.liferay.ide.portlet.core.model.SupportedLocales;
+import com.liferay.ide.portlet.core.model.internal.LocaleBundleValidationService;
 import com.liferay.ide.portlet.core.util.PortletUtil;
 
 import java.util.ArrayList;
@@ -31,26 +32,29 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.sapphire.DisposeEvent;
+import org.eclipse.sapphire.Element;
 import org.eclipse.sapphire.Event;
 import org.eclipse.sapphire.FilteredListener;
 import org.eclipse.sapphire.Listener;
-import org.eclipse.sapphire.modeling.IModelElement;
+import org.eclipse.sapphire.PropertyEvent;
+import org.eclipse.sapphire.Value;
 import org.eclipse.sapphire.modeling.Path;
-import org.eclipse.sapphire.modeling.PropertyEvent;
-import org.eclipse.sapphire.modeling.Value;
+import org.eclipse.sapphire.modeling.Status.Severity;
+import org.eclipse.sapphire.ui.Presentation;
 import org.eclipse.sapphire.ui.SapphireAction;
-import org.eclipse.sapphire.ui.SapphireRenderingContext;
 import org.eclipse.sapphire.ui.def.ActionHandlerDef;
+import org.eclipse.ui.texteditor.ITextEditor;
 
 /**
- * @author <a href="mailto:kamesh.sampath@accenture.com">Kamesh Sampath</a>
+ * @author Kamesh Sampath
  * @author Gregory Amerson
+ * @author Kuo Zhang
+ * @author Simon Jiang
  */
 public class CreatePortletResourceBundleActionHandler extends AbstractResourceBundleActionHandler
 {
-
-    Listener localePropListener;
 
     /*
      * (non-Javadoc)
@@ -61,10 +65,11 @@ public class CreatePortletResourceBundleActionHandler extends AbstractResourceBu
     public void init( SapphireAction action, ActionHandlerDef def )
     {
         super.init( action, def );
-        final IModelElement element = getModelElement();
+        final Element element = getModelElement();
 
-        this.listener = new FilteredListener<PropertyEvent>()
+        listener = new FilteredListener<PropertyEvent>()
         {
+
             @Override
             protected void handleTypedEvent( final PropertyEvent event )
             {
@@ -72,33 +77,24 @@ public class CreatePortletResourceBundleActionHandler extends AbstractResourceBu
             }
         };
 
-        localePropListener = new FilteredListener<PropertyEvent>()
-        {
-            @Override
-            protected void handleTypedEvent( final PropertyEvent event )
-            {
-                refreshEnablementState();
-            }
-        };
-        
-        element.attach( listener, getProperty().getName() );
-        element.attach( localePropListener, Portlet.PROP_SUPPORTED_LOCALES.getName() );
+        element.attach( listener, property().name() );
+        element.attach( listener, Portlet.PROP_SUPPORTED_LOCALES.name() );
+        element.attach( listener, Portlet.PROP_SUPPORTED_LOCALES.name() + "/" +
+            SupportedLocales.PROP_SUPPORTED_LOCALE.name() );
 
-        attach
-        ( 
-            new Listener()
+        attach( new Listener()
+        {
+            public void handle( Event event )
             {
-                @Override
-                public void handle( Event event )
+                if( event instanceof DisposeEvent )
                 {
-                    if( event instanceof DisposeEvent )
-                    {
-                        getModelElement().detach( listener, getProperty().getName() );
-                        getModelElement().detach( localePropListener, Portlet.PROP_SUPPORTED_LOCALES.getName() );
-                    }
+                    getModelElement().detach( listener, property().name() );
+                    getModelElement().detach( listener, Portlet.PROP_SUPPORTED_LOCALES.name() );
+                    getModelElement().detach( listener, Portlet.PROP_SUPPORTED_LOCALES.name() +
+                        "/" + SupportedLocales.PROP_SUPPORTED_LOCALE.name() );
                 }
-            } 
-        );
+            }
+        } );
     }
 
     /*
@@ -109,11 +105,35 @@ public class CreatePortletResourceBundleActionHandler extends AbstractResourceBu
     protected boolean computeEnablementState()
     {
         boolean isEnabled = super.computeEnablementState();
-        final IModelElement element = getModelElement();
-        Portlet portlet = (Portlet) element;
-        if( portlet.getSupportedLocales() != null && !portlet.getSupportedLocales().isEmpty() )
+
+        if( isEnabled )
         {
-            isEnabled = !portlet.getSupportedLocales().validation().ok();
+            final Portlet portlet = (Portlet) getModelElement();
+
+            if( portlet.getResourceBundle() != null && !portlet.getResourceBundle().empty() )
+            {
+                if( portlet.getResourceBundle().validation().severity() == Severity.ERROR )
+                {
+                    isEnabled = false;
+                }
+            }
+
+            if( portlet.getSupportedLocales() != null && !portlet.getSupportedLocales().isEmpty() )
+            {
+                for( SupportedLocales sl : portlet.getSupportedLocales() )
+                {
+                    /*
+                     * By now, the error means the locale is not unique or not among possible values or empty, that
+                     * makes the button "Create Locale Bundles" disabled. The warning means
+                     * "No resource bundle defined", in this case the button should be enabled.
+                     */
+                    if( sl.validation().severity() == Severity.ERROR )
+                    {
+                        isEnabled = false;
+                        break;
+                    }
+                }
+            }
         }
 
         return isEnabled;
@@ -124,25 +144,32 @@ public class CreatePortletResourceBundleActionHandler extends AbstractResourceBu
      * @see org.eclipse.sapphire.ui.SapphireActionHandler#run(org.eclipse.sapphire.ui.SapphireRenderingContext)
      */
     @Override
-    protected Object run( SapphireRenderingContext context )
+    protected Object run( Presentation context )
     {
+        context.part().adapt( ITextEditor.class ).doSave( new NullProgressMonitor() );
+
         final List<IFile> missingRBFiles = new ArrayList<IFile>();
         final Portlet portlet = (Portlet) getModelElement();
         final IProject project = portlet.adapt( IProject.class );
-        Value<Path> resourceBundle = portlet.getResourceBundle();
-        final String text = resourceBundle.getText();
+        final Value<Path> resourceBundle = portlet.getResourceBundle();
+        final String text = resourceBundle.text();
 
         String defaultRBFileName =
             PortletUtil.convertJavaToIoFileName( text, GenericResourceBundlePathService.RB_FILE_EXTENSION );
 
         int index = text.lastIndexOf( "." ); //$NON-NLS-1$
 
+        String packageName = "";
+
         if( index == -1 )
         {
             index = text.length();
+            packageName = "";
         }
-
-        final String packageName = text.substring( 0, index );
+        else
+        {
+            packageName = text.substring( 0, index );
+        }
 
         final IFolder rbSourceFolder = getResourceBundleFolderLocation( project, defaultRBFileName );
         final IPath entryPath = rbSourceFolder.getLocation();
@@ -164,7 +191,7 @@ public class CreatePortletResourceBundleActionHandler extends AbstractResourceBu
         {
             if( iSupportedLocale != null )
             {
-                String locale = PortletUtil.localeString( iSupportedLocale.getSupportedLocale().getText() );
+                String locale = PortletUtil.localeString( iSupportedLocale.getSupportedLocale().text() );
                 final String localizedIOFileName =
                     PortletUtil.convertJavaToIoFileName(
                         text, GenericResourceBundlePathService.RB_FILE_EXTENSION, locale );
@@ -178,9 +205,13 @@ public class CreatePortletResourceBundleActionHandler extends AbstractResourceBu
         }
 
         createFiles( context, project, packageName, missingRBFiles, rbFileBuffer );
+
         setEnabled( false );
-        getModelElement().refresh( getProperty(), true );
-        getModelElement().refresh( Portlet.PROP_SUPPORTED_LOCALES, true, true );
+
+        for( SupportedLocales sl : getModelElement().nearest( Portlet.class ).getSupportedLocales() )
+        {
+            sl.getSupportedLocale().service( LocaleBundleValidationService.class ).forceRefresh();
+        }
 
         return null;
     }

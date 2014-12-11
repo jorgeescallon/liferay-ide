@@ -2,8 +2,8 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: %bundle.name
 Bundle-SymbolicName: com.liferay.ide.server.ui;singleton:=true
-Bundle-Version: 2.0.0.qualifier
-Bundle-Activator: com.liferay.ide.server.ui.LiferayServerUIPlugin
+Bundle-Version: 3.0.0.qualifier
+Bundle-Activator: com.liferay.ide.server.ui.LiferayServerUI
 Bundle-Vendor: %bundle.vendor
 Require-Bundle: org.eclipse.ui,
  org.eclipse.wst.server.ui;bundle-version="[1.1.103,2.0.0)";visibility:=reexport,
@@ -29,10 +29,19 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.jface.text,
  org.eclipse.jst.jsp.core,
  org.eclipse.jst.jsp.ui,
- org.eclipse.ui.ide
-Bundle-RequiredExecutionEnvironment: J2SE-1.5
+ org.eclipse.ui.ide,
+ org.eclipse.datatools.connectivity,
+ org.eclipse.core.filesystem,
+ org.eclipse.mylyn.commons.notifications.ui,
+ org.eclipse.mylyn.commons.notifications.core,
+ org.eclipse.mylyn.commons.workbench,
+ org.eclipse.mylyn.commons.ui,
+ org.eclipse.wst.server.core
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Bundle-ActivationPolicy: lazy
 Export-Package: com.liferay.ide.server.ui,
  com.liferay.ide.server.ui.action,
  com.liferay.ide.server.ui.cmd,
+ com.liferay.ide.server.ui.navigator,
+ com.liferay.ide.server.ui.portal,
  com.liferay.ide.server.ui.wizard

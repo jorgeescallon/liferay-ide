@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,7 +17,7 @@
 
 package com.liferay.ide.project.ui.action;
 
-import com.liferay.ide.project.ui.ProjectUIPlugin;
+import com.liferay.ide.project.ui.ProjectUI;
 
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.resource.ImageDescriptor;
@@ -34,7 +34,7 @@ public class NewServerAction extends Action
 
     public NewServerAction( Shell shell )
     {
-        super( Msgs.newLiferayServer, ImageDescriptor.createFromURL( ProjectUIPlugin.getDefault().getBundle().getEntry(
+        super( Msgs.newLiferayServer, ImageDescriptor.createFromURL( ProjectUI.getDefault().getBundle().getEntry(
             "/icons/n16/server_new.png" ) ) ); //$NON-NLS-1$
         this.shell = shell;
     }

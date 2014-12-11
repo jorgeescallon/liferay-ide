@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -144,16 +144,6 @@ public class BuildLanguageJob extends Job
         catch( Exception e )
         {
             PortletCore.logError( e );
-        }
-
-        // check generated properties files and set to UTF8
-        for( IResource file : langFile.getParent().members() )
-        {
-            if( file.getName().matches( "Language_.*\\.properties" ) ) //$NON-NLS-1$
-            {
-                IFile generatedLangFile = (IFile) file;
-                generatedLangFile.setCharset( "UTF-8", monitor ); //$NON-NLS-1$
-            }
         }
 
         if( retval == null || ! retval.isOK() )

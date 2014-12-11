@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,9 +15,8 @@
 
 package com.liferay.ide.project.ui.pref;
 
-import com.liferay.ide.project.core.LiferayProjectCore;
-import com.liferay.ide.project.ui.ProjectUIPlugin;
-import com.liferay.ide.ui.pref.AbstractValidationSettingsPage;
+import com.liferay.ide.project.core.ProjectCore;
+import com.liferay.ide.project.ui.ProjectUI;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -153,13 +152,13 @@ public class ProjectValidationSettingsPage extends AbstractValidationSettingsPag
 
     protected IDialogSettings getDialogSettings()
     {
-        return ProjectUIPlugin.getDefault().getDialogSettings();
+        return ProjectUI.getDefault().getDialogSettings();
     }
 
     @Override
     protected String getPreferenceNodeQualifier()
     {
-        return LiferayProjectCore.PLUGIN_ID;
+        return ProjectCore.PLUGIN_ID;
     }
 
     @Override
@@ -171,7 +170,7 @@ public class ProjectValidationSettingsPage extends AbstractValidationSettingsPag
     @Override
     protected String getProjectSettingsKey()
     {
-        return LiferayProjectCore.USE_PROJECT_SETTINGS;
+        return ProjectCore.USE_PROJECT_SETTINGS;
     }
 
     @Override
@@ -182,7 +181,7 @@ public class ProjectValidationSettingsPage extends AbstractValidationSettingsPag
 
     protected String getQualifier()
     {
-        return LiferayProjectCore.getDefault().getBundle().getSymbolicName();
+        return ProjectCore.getDefault().getBundle().getSymbolicName();
     }
 
     protected void initializeValues()

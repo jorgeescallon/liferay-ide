@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -25,6 +25,8 @@ import org.osgi.framework.Version;
  */
 public interface ILiferayConstants
 {
+    Version EMPTY_VERSION = new Version( 0, 0, 0 );
+    String LANGUAGE_PROPERTIES_FILE_ENCODING_CHARSET = "UTF-8";//$NON-NLS-1$
     Version LEAST_SUPPORTED_VERSION = new Version( 6, 0, 2 );
     String LIFERAY_DISPLAY_XML_FILE = "liferay-display.xml"; //$NON-NLS-1$
     String LIFERAY_HOOK_XML_FILE = "liferay-hook.xml"; //$NON-NLS-1$
@@ -37,8 +39,12 @@ public interface ILiferayConstants
     String PORTLET_XML_FILE = "portlet.xml"; //$NON-NLS-1$
     Version V601 = new Version( 6, 0, 1 );
     Version V610 = new Version( 6, 1, 0 );
+    Version V611 = new Version( 6, 1, 1 );
     Version V6110 = new Version( 6, 1, 10 );
     Version V612 = new Version( 6, 1, 2 );
+    Version V6120 = new Version( 6, 1, 20 );
+    Version V6130 = new Version( 6, 1, 30 );
     Version V620 = new Version( 6, 2, 0 );
+    Version V700 = new Version( 7, 0, 0 );
     String WEB_XML_FILE = "web.xml"; //$NON-NLS-1$
 }

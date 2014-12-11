@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -17,34 +17,35 @@
 
 package com.liferay.ide.portlet.core.model.internal;
 
-import com.liferay.ide.portlet.core.model.EventDefinition;
-import com.liferay.ide.portlet.core.model.PublicRenderParameter;
 import com.liferay.ide.portlet.core.model.QName;
 
 import org.eclipse.osgi.util.NLS;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.FilteredListener;
+import org.eclipse.sapphire.Listener;
+import org.eclipse.sapphire.PropertyContentEvent;
 import org.eclipse.sapphire.modeling.CapitalizationType;
-import org.eclipse.sapphire.modeling.IModelElement;
 import org.eclipse.sapphire.modeling.Status;
 import org.eclipse.sapphire.services.ValidationService;
 
 /**
- * @author <a href="mailto:kamesh.sampath@accenture.com">Kamesh Sampath</a>
+ * @author Kamesh Sampath
  */
 public class NameOrQnameValidationService extends ValidationService
 {
 
     /*
      * (non-Javadoc)
-     * @see org.eclipse.sapphire.modeling.ModelPropertyValidationService#validate()
+     * @see org.eclipse.sapphire.modeling.PropertyValidationService#validate()
      */
+    private Listener listener;
+
     @Override
-    public Status validate()
+    public Status compute()
     {
-        IModelElement element = context( IModelElement.class );
+        Element element = context( Element.class );
 
         final String elementLabel = element.type().getLabel( false, CapitalizationType.FIRST_WORD_ONLY, false );
-        EventDefinition eventDefinition = null;
-        PublicRenderParameter publicRenderParameter = null;
         QName iqName = null;
         String name = null;
         String nsURI = null;
@@ -52,20 +53,8 @@ public class NameOrQnameValidationService extends ValidationService
         if( element instanceof QName )
         {
             iqName = (QName) element;
-            nsURI = iqName.getNamespaceURI().getText( false );
-            localPart = iqName.getLocalPart().getText( false );
-        }
-
-        if( element instanceof EventDefinition )
-        {
-            eventDefinition = (EventDefinition) element;
-            name = eventDefinition.getName().getContent( false );
-        }
-
-        if( element instanceof PublicRenderParameter )
-        {
-            publicRenderParameter = (PublicRenderParameter) element;
-            name = publicRenderParameter.getName().getContent( false );
+            nsURI = iqName.getNamespaceURI().text( false );
+            localPart = iqName.getLocalPart().text( false );
         }
 
         if( isEmptyOrNull( name ) && isEmptyOrNull( nsURI ) && isEmptyOrNull( localPart ) )
@@ -84,6 +73,22 @@ public class NameOrQnameValidationService extends ValidationService
      * @param text
      * @return
      */
+
+    @Override
+    protected void initValidationService()
+    {
+        this.listener = new FilteredListener<PropertyContentEvent>()
+        {
+            protected void handleTypedEvent( final PropertyContentEvent event )
+            {
+                refresh();
+            }
+        };
+
+        op().getLocalPart().attach( this.listener );
+        op().getNamespaceURI().attach( this.listener );
+    }
+
     private boolean isEmptyOrNull( String text )
     {
         if( text == null || text.trim().length() == 0 )
@@ -104,4 +109,8 @@ public class NameOrQnameValidationService extends ValidationService
         }
     }
 
+    private QName op()
+    {
+        return context( QName.class );
+    }
 }

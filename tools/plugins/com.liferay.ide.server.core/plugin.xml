@@ -2,8 +2,10 @@
 <?eclipse version="3.4"?>
 <plugin>
    <extension-point id="pluginPublishers" name="%plugin.publishers.extension.point.name" schema="schema/pluginPublishers.exsd"/>
+   <extension-point id="portalLaunchParticipants" name="Portal Launch Participants" schema="schema/portalLaunchParticipants.exsd"/>
    <extension-point id="runtimeDelegateValidators" name="%runtime.delegate.validators.extension.point.name" schema="schema/runtimeDelegateValidators.exsd"/>
    <extension-point id="runtimeStubs" name="%runtime.stubs.extension.point.name" schema="schema/runtimeStubs.exsd"/>
+   <extension-point id="portalBundles" name="Liferay Portal Bundles" schema="schema/portalBundles.exsd"/>
 
    <extension
          point="org.eclipse.wst.xml.core.catalogContributions">
@@ -861,6 +863,15 @@
                uri="platform:/plugin/com.liferay.ide.server.core/dtd/liferay-theme-loader_6_2_0.dtd">
          </system>
          <public
+               publicId="-//Liferay//DTD User Notification Definition 6.2.0//EN"
+               uri="platform:/plugin/com.liferay.ide.server.core/dtd/liferay-user-notification-definitions_6_2_0.dtd"
+               webURL="http://www.liferay.com/dtd/liferay-user-notification-definitions_6_2_0.dtd">
+         </public>
+         <system
+               systemId="http://www.liferay.com/dtd/liferay-user-notification-definitions_6_2_0.dtd"
+               uri="platform:/plugin/com.liferay.ide.server.core/dtd/liferay-user-notification-definitions_6_2_0.dtd">
+         </system>
+         <public
                publicId="-//MuleSource //DTD mule-configuration XML V1.0//EN"
                uri="platform:/plugin/com.liferay.ide.server.core/dtd/mule-configuration.dtd"
                webURL="http://mule.mulesource.org/dtds/mule-configuration.dtd">
@@ -872,8 +883,8 @@
          </public>
          <public
                publicId="-//Apache Software Foundation//DTD Struts Configuration 1.2//EN"
-               uri="platform:/plugin/com.liferay.ide.server.core/dtd/spring-beans.dtd"
-               webURL="http://struts.apache.org/dtds/struts-config_1_2.dtd">
+               uri="platform:/plugin/com.liferay.ide.server.core/dtd/struts-config_1_2.dtd"
+               webURL="http://jakarta.apache.org/struts/dtds/struts-config_1_2.dtd">
          </public>
          <public
                publicId="-//Apache Software Foundation//DTD Tiles Configuration 1.1//EN"
@@ -917,6 +928,10 @@
                name="http://java.sun.com/xml/ns/javaee/javaee_6.xsd"
                uri="platform:/plugin/com.liferay.ide.server.core/xsd/javaee_6.xsd">
          </uri>
+                  <uri
+               name="http://xmlns.jcp.org/xml/ns/javaee/javaee_7.xsd"
+               uri="platform:/plugin/com.liferay.ide.server.core/xsd/javaee_7.xsd">
+         </uri>
          <uri
                name="http://java.sun.com/xml/ns/javaee/javaee_web_services_client_1_2.xsd"
                uri="platform:/plugin/com.liferay.ide.server.core/xsd/javaee_web_services_client_1_2.xsd">
@@ -924,6 +939,10 @@
          <uri
                name="http://java.sun.com/xml/ns/javaee/javaee_web_services_client_1_3.xsd"
                uri="platform:/plugin/com.liferay.ide.server.core/xsd/javaee_web_services_client_1_3.xsd">
+         </uri>
+         <uri
+               name="http://xmlns.jcp.org/xml/ns/javaee/javaee_web_services_client_1_4.xsd"
+               uri="platform:/plugin/com.liferay.ide.server.core/xsd/javaee_web_services_client_1_4.xsd">
          </uri>
          <uri
                name="http://java.sun.com/xml/ns/j2ee/jsp_2_0.xsd"
@@ -936,6 +955,14 @@
          <uri
                name="http://java.sun.com/xml/ns/javaee/jsp_2_2.xsd"
                uri="platform:/plugin/com.liferay.ide.server.core/xsd/jsp_2_2.xsd">
+         </uri>
+         <uri
+               name="http://xmlns.jcp.org/xml/ns/javaee/jsp_2_3.xsd"
+               uri="platform:/plugin/com.liferay.ide.server.core/xsd/jsp_2_3.xsd">
+         </uri>
+         <uri
+               name="http://www.liferay.com/dtd/liferay-ddm-structure_6_2_0.xsd"
+               uri="platform:/plugin/com.liferay.ide.server.core/xsd/liferay-ddm-structure_6_2_0.xsd">
          </uri>
          <uri
                name="http://www.liferay.com/dtd/liferay-workflow-definition_6_0_0.xsd"
@@ -973,6 +1000,7 @@
                name="http://www.springframework.org/schema/aop/spring-util-3.0.xsd"
                uri="platform:/plugin/com.liferay.ide.server.core/xsd/spring-util-3.0.xsd">
          </uri>
+         <!--
          <uri
                name="http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd"
                uri="platform:/plugin/com.liferay.ide.server.core/xsd/web-app_2_4.xsd">
@@ -985,9 +1013,18 @@
                name="http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
                uri="platform:/plugin/com.liferay.ide.server.core/xsd/web-app_3_0.xsd">
          </uri>
+                  <uri
+               name="http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+               uri="platform:/plugin/com.liferay.ide.server.core/xsd/web-app_3_1.xsd">
+         </uri>
          <uri
                name="http://java.sun.com/xml/ns/javaee/web-common_3_0.xsd"
                uri="platform:/plugin/com.liferay.ide.server.core/xsd/web-common_3_0.xsd">
+         </uri>
+         -->
+         <uri
+               name="http://xmlns.jcp.org/xml/ns/javaee/web-common_3_1.xsd"
+               uri="platform:/plugin/com.liferay.ide.server.core/xsd/web-common_3_1.xsd">
          </uri>
          <uri
                name="http://java.sun.com/xml/ns/javaee/web-facesconfig_1_2.xsd"
@@ -1000,6 +1037,10 @@
          <uri
                name="http://java.sun.com/xml/ns/javaee/web-facesconfig_2_1.xsd"
                uri="platform:/plugin/com.liferay.ide.server.core/xsd/web-facesconfig_2_1.xsd">
+         </uri>
+         <uri
+               name="http://xmlns.jcp.org/xml/ns/javaee/web-facesconfig_2_2.xsd"
+               uri="platform:/plugin/com.liferay.ide.server.core/xsd/web-facesconfig_2_2.xsd">
          </uri>
          <uri
                name="http://xmlns.oracle.com/weblogic/weblogic-web-app/1.4/weblogic-web-app.xsd"
@@ -1042,6 +1083,17 @@
                versions="1.0">
          </moduleType>
       </runtimeType>
+      <runtimeType
+            class="com.liferay.ide.server.core.portal.PortalRuntime"
+            description="Liferay 7.x"
+            id="com.liferay.ide.server.portal.runtime"
+            name="Liferay 7.x"
+            vendor="Liferay, Inc.">
+         <moduleType
+               types="liferay.bundle"
+               versions="*">
+         </moduleType>
+      </runtimeType>
    </extension>
    <extension
          point="org.eclipse.wst.server.core.serverTypes">
@@ -1057,6 +1109,18 @@
             runtimeTypeId="com.liferay.ide.eclipse.server.runtime.stub"
             supportsRemoteHosts="true">
       </serverType>
+      <serverType
+            behaviourClass="com.liferay.ide.server.core.portal.PortalServerBehavior"
+            class="com.liferay.ide.server.core.portal.PortalServerDelegate"
+            description="Liferay 7.x"
+            id="com.liferay.ide.server.portal"
+            initialState="stopped"
+            launchConfigId="com.liferay.ide.server.portal.launch"
+            name="Liferay 7.x"
+            runtime="true"
+            runtimeTypeId="com.liferay.ide.server.portal.runtime"
+            supportsRemoteHosts="true">
+      </serverType>
    </extension>
    <extension
          point="org.eclipse.debug.core.launchConfigurationTypes">
@@ -1068,6 +1132,13 @@
             public="true"
             sourceLocatorId="org.eclipse.jdt.launching.sourceLocator.JavaSourceLookupDirector"
             sourcePathComputerId="com.liferay.ide.server.remote.sourcePathComputer">
+      </launchConfigurationType>
+      <launchConfigurationType
+            delegate="com.liferay.ide.server.core.portal.PortalServerLaunchConfig"
+            id="com.liferay.ide.server.portal.launch"
+            modes="run,debug"
+            name="Liferay 7.x"
+            public="true">
       </launchConfigurationType>
    </extension>
    <extension
@@ -1123,6 +1194,10 @@
                id="liferay.theme"
                version="6.0">
          </facet>
+         <facet
+               id="liferay.web"
+               version="6.0">
+         </facet>
       </supported>
    </extension>
    <extension
@@ -1147,6 +1222,20 @@
             class="com.liferay.ide.server.remote.RemoteSourcePathComputerDelegate"
             id="com.liferay.ide.server.remote.sourcePathComputer">
       </sourcePathComputer>
+   </extension>
+   <extension
+         point="org.eclipse.wst.server.core.moduleTypes">
+      <moduleType
+            id="liferay.bundle"
+            name="Liferay OSGi Bundle">
+      </moduleType>
+   </extension>
+   <extension
+         point="com.liferay.ide.server.core.portalBundles">
+      <portalBundle
+            class="com.liferay.ide.server.core.portal.PortalTomcatBundle"
+            type="tomcat">
+      </portalBundle>
    </extension>
 
 </plugin>

@@ -2,7 +2,7 @@
 <feature
       id="com.liferay.ide.common"
       label="Liferay IDE Common"
-      version="2.0.0.qualifier"
+      version="3.0.0.qualifier"
       provider-name="Liferay, Inc.">
 
    <description url="http://www.liferay.com/community/liferay-projects/liferay-ide/overview">
@@ -11,7 +11,7 @@
 
    <copyright url="http://www.liferay.com/products/liferay-portal/lgpl">
       /**
-* Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+* Copyright (c) 2000-present Liferay, Inc. All rights reserved.
 *
 * This library is free software; you can redistribute it and/or
 * modify it under the terms of the GNU Lesser General Public
@@ -38,13 +38,6 @@
          unpack="false"/>
 
    <plugin
-         id="com.liferay.ide.ui"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
-         unpack="false"/>
-
-   <plugin
          id="com.liferay.ide.doc"
          download-size="0"
          install-size="0"
@@ -52,42 +45,7 @@
          unpack="false"/>
 
    <plugin
-         id="com.liferay.ide.properties.core"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
-         unpack="false"/>
-
-   <plugin
-         id="com.liferay.ide.templates.core"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
-         unpack="false"/>
-
-   <plugin
-         id="com.liferay.ide.ui.snippets"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
-         unpack="false"/>
-
-   <plugin
-         id="com.liferay.ide.freemarker"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
-         unpack="false"/>
-
-   <plugin
-         id="com.liferay.ide.debug.core"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
-         unpack="false"/>
-
-   <plugin
-         id="com.liferay.ide.debug.ui"
+         id="com.liferay.ide.ui"
          download-size="0"
          install-size="0"
          version="0.0.0"

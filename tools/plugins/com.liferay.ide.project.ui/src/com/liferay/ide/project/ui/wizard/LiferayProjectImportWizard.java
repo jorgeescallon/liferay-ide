@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,7 +16,7 @@
 package com.liferay.ide.project.ui.wizard;
 
 import com.liferay.ide.project.core.LiferayProjectImportDataModelProvider;
-import com.liferay.ide.project.ui.ProjectUIPlugin;
+import com.liferay.ide.project.ui.ProjectUI;
 import com.liferay.ide.ui.util.UIUtil;
 
 import java.lang.reflect.InvocationTargetException;
@@ -52,8 +52,8 @@ public class LiferayProjectImportWizard extends DataModelWizard implements IWork
         super( dataModel );
 
         setWindowTitle( Msgs.importProject );
-        setDefaultPageImageDescriptor( ProjectUIPlugin.imageDescriptorFromPlugin(
-            ProjectUIPlugin.PLUGIN_ID, "/icons/wizban/import_wiz.png" ) ); //$NON-NLS-1$
+        setDefaultPageImageDescriptor( ProjectUI.imageDescriptorFromPlugin(
+            ProjectUI.PLUGIN_ID, "/icons/wizban/import_wiz.png" ) ); //$NON-NLS-1$
         setNeedsProgressMonitor( true );
     }
 

@@ -1,16 +1,16 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
  * Software Foundation; either version 2.1 of the License, or (at your option)
  * any later version.
- *   
+ *
  * This library is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
  * details.
- *    
+ *
  * Contributors:
  *      Kamesh Sampath - initial implementation
  *      Gregory Amerson - initial implemenation and ongoing maintanence
@@ -31,12 +31,12 @@ import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.IClasspathEntry;
-import org.eclipse.sapphire.modeling.IModelElement;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.Value;
+import org.eclipse.sapphire.ValueProperty;
 import org.eclipse.sapphire.modeling.Path;
-import org.eclipse.sapphire.modeling.Value;
-import org.eclipse.sapphire.modeling.ValueProperty;
-import org.eclipse.sapphire.ui.SapphireJumpActionHandler;
-import org.eclipse.sapphire.ui.SapphireRenderingContext;
+import org.eclipse.sapphire.ui.Presentation;
+import org.eclipse.sapphire.ui.forms.JumpActionHandler;
 import org.eclipse.ui.IEditorDescriptor;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
@@ -47,7 +47,7 @@ import org.eclipse.ui.ide.IDE;
 /**
  * @author Kamesh Sampath
  */
-public class ResourceBundleJumpActionHandler extends SapphireJumpActionHandler
+public class ResourceBundleJumpActionHandler extends JumpActionHandler
 {
 
     /*
@@ -57,12 +57,12 @@ public class ResourceBundleJumpActionHandler extends SapphireJumpActionHandler
     @Override
     protected boolean computeEnablementState()
     {
-        final IModelElement element = getModelElement();
+        final Element element = getModelElement();
         IProject project = element.adapt( IProject.class );
 
-        final ValueProperty property = getProperty();
+        final ValueProperty property = (ValueProperty) property().definition();
 
-        final String text = element.read( property ).getText( true );
+        final String text = element.property( property ).text( true );
         boolean isEnabled = super.computeEnablementState();
         if( isEnabled && text != null )
         {
@@ -92,20 +92,20 @@ public class ResourceBundleJumpActionHandler extends SapphireJumpActionHandler
      * @see org.eclipse.sapphire.ui.SapphireActionHandler#run(org.eclipse.sapphire.ui.SapphireRenderingContext)
      */
     @Override
-    protected Object run( SapphireRenderingContext context )
+    protected Object run( Presentation context )
     {
 
-        final IModelElement element = getModelElement();
+        final Element element = getModelElement();
 
         final IWorkbenchWindow window = PlatformUI.getWorkbench().getActiveWorkbenchWindow();
 
-        final ValueProperty property = getProperty();
+        final ValueProperty property = (ValueProperty) property().definition();
 
         final IProject project = element.adapt( IProject.class );
 
-        final Value<Path> value = element.read( property );
+        final Value<Path> value = element.property( property );
 
-        final String text = value.getText( false );
+        final String text = value.text( false );
 
         final IWorkspace workspace = ResourcesPlugin.getWorkspace();
         final IWorkspaceRoot wroot = workspace.getRoot();

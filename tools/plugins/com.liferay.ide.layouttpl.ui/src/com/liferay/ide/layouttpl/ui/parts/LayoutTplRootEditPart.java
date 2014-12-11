@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -41,11 +41,6 @@ public class LayoutTplRootEditPart extends SimpleRootEditPart implements LayerCo
         {
             setEnabled( false );
         }
-
-        // @Override
-        // public Dimension getMinimumSize(int wHint, int hHint) {
-        // return super.getMinimumSize(-1, -1);
-        // }
 
         /**
          * @see org.eclipse.draw2d.Figure#getPreferredSize(int, int)

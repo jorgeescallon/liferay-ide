@@ -1,16 +1,16 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
  * Software Foundation; either version 2.1 of the License, or (at your option)
  * any later version.
- *   
+ *
  * This library is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
  * details.
- *    
+ *
  * Contributors:
  *      Kamesh Sampath - initial implementation
  *      Gregory Amerson - initial implementation review and ongoing maintanence
@@ -32,6 +32,7 @@ import java.util.ListIterator;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -45,17 +46,18 @@ import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.dialogs.ProgressMonitorDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
+import org.eclipse.sapphire.Element;
 import org.eclipse.sapphire.Listener;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelProperty;
-import org.eclipse.sapphire.modeling.ValueProperty;
-import org.eclipse.sapphire.ui.SapphirePropertyEditorActionHandler;
-import org.eclipse.sapphire.ui.SapphireRenderingContext;
+import org.eclipse.sapphire.Property;
+import org.eclipse.sapphire.ValueProperty;
+import org.eclipse.sapphire.ui.Presentation;
+import org.eclipse.sapphire.ui.forms.PropertyEditorActionHandler;
+import org.eclipse.sapphire.ui.forms.swt.SwtPresentation;
 
 /**
  * @author Kamesh Sampath
  */
-public abstract class AbstractResourceBundleActionHandler extends SapphirePropertyEditorActionHandler
+public abstract class AbstractResourceBundleActionHandler extends PropertyEditorActionHandler
 {
 
     final IWorkspace workspace = ResourcesPlugin.getWorkspace();
@@ -70,16 +72,25 @@ public abstract class AbstractResourceBundleActionHandler extends SapphireProper
     protected boolean computeEnablementState()
     {
         boolean isEnabled = super.computeEnablementState();
-        final IModelElement element = getModelElement();
-        final ModelProperty property = getProperty();
-        final IProject project = element.adapt( IProject.class );
-        String rbFile = element.read( (ValueProperty) property ).getText();
-        if( rbFile != null )
+
+        if( isEnabled )
         {
-            String ioFileName =
-                PortletUtil.convertJavaToIoFileName( rbFile, GenericResourceBundlePathService.RB_FILE_EXTENSION );
-            isEnabled = isEnabled && !getFileFromClasspath( project, ioFileName );
+            final Element element = getModelElement();
+            final Property property = property();
+            final IProject project = element.adapt( IProject.class );
+            String rbFile = element.property( (ValueProperty) property.definition() ).text();
+            if( rbFile != null )
+            {
+                String ioFileName =
+                    PortletUtil.convertJavaToIoFileName( rbFile, GenericResourceBundlePathService.RB_FILE_EXTENSION );
+                isEnabled = !getFileFromClasspath( project, ioFileName );
+            }
+            else
+            {
+                isEnabled = false;
+            }
         }
+
         return isEnabled;
     }
 
@@ -144,7 +155,7 @@ public abstract class AbstractResourceBundleActionHandler extends SapphireProper
      * @param rbFileBuffer
      */
     protected final void createFiles(
-        final SapphireRenderingContext context, final IProject project, final String packageName,
+        final Presentation context, final IProject project, final String packageName,
         final List<IFile> rbFiles, final StringBuilder rbFileBuffer )
     {
         if( !rbFiles.isEmpty() )
@@ -178,6 +189,8 @@ public abstract class AbstractResourceBundleActionHandler extends SapphireProper
                             monitor.worked( 1 );
                         }
 
+                        project.refreshLocal( IResource.DEPTH_INFINITE, monitor );
+
                     }
                     catch( CoreException e )
                     {
@@ -193,7 +206,8 @@ public abstract class AbstractResourceBundleActionHandler extends SapphireProper
 
             try
             {
-                ( new ProgressMonitorDialog( context.getShell() ) ).run( false, false, rbCreationProc );
+                ( new ProgressMonitorDialog( ( (SwtPresentation) context ).shell() ) ).run(
+                    false, false, rbCreationProc );
                 rbFiles.clear();
             }
             catch( InvocationTargetException e )

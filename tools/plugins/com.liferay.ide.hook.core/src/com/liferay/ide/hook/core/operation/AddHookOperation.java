@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,6 +16,7 @@
 package com.liferay.ide.hook.core.operation;
 
 import com.liferay.ide.core.ILiferayConstants;
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.StringBufferOutputStream;
@@ -23,6 +24,7 @@ import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.StringPool;
 import com.liferay.ide.hook.core.HookCore;
 import com.liferay.ide.hook.core.dd.HookDescriptorHelper;
+import com.liferay.ide.hook.core.util.HookUtil;
 import com.liferay.ide.project.core.util.ProjectUtil;
 
 import java.io.ByteArrayInputStream;
@@ -35,7 +37,6 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.eclipse.core.commands.ExecutionException;
-import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
@@ -51,22 +52,13 @@ import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.templates.TemplateException;
 import org.eclipse.jst.j2ee.internal.common.operations.INewJavaClassDataModelProperties;
-import org.eclipse.wst.common.componentcore.resources.IVirtualFolder;
 import org.eclipse.wst.common.frameworks.datamodel.AbstractDataModelOperation;
 import org.eclipse.wst.common.frameworks.datamodel.IDataModel;
-import org.eclipse.wst.validation.Validator;
-import org.eclipse.wst.validation.internal.ConfigurationManager;
-import org.eclipse.wst.validation.internal.ProjectConfiguration;
-import org.eclipse.wst.validation.internal.ValManager;
-import org.eclipse.wst.validation.internal.ValManager.UseProjectPreferences;
-import org.eclipse.wst.validation.internal.ValPrefManagerProject;
-import org.eclipse.wst.validation.internal.ValidatorMutable;
-import org.eclipse.wst.validation.internal.model.FilterGroup;
-import org.eclipse.wst.validation.internal.model.FilterRule;
-import org.eclipse.wst.validation.internal.model.ProjectPreferences;
 
 /**
  * @author Greg Amerson
+ * @author Simon Jiang
+ * @author Terry Jia
  */
 @SuppressWarnings( { "restriction", "unchecked" } )
 public class AddHookOperation extends AbstractDataModelOperation implements INewHookDataModelProperties
@@ -121,86 +113,9 @@ public class AddHookOperation extends AbstractDataModelOperation implements INew
         return ProjectUtil.getProject( projectName );
     }
 
-    protected void addJSPSyntaxValidationExclude( IFolder customFolder )
-    {
-        try
-        {
-            IProject project = getTargetProject();
-
-            Validator[] vals =
-                ValManager.getDefault().getValidatorsConfiguredForProject( project, UseProjectPreferences.MustUse );
-
-            ValidatorMutable[] validators = new ValidatorMutable[vals.length];
-
-            for( int i = 0; i < vals.length; i++ )
-            {
-                validators[i] = new ValidatorMutable( vals[i] );
-
-                if( "org.eclipse.jst.jsp.core.JSPBatchValidator".equals( validators[i].getId() ) ) //$NON-NLS-1$
-                {
-                    // check for exclude group
-                    FilterGroup excludeGroup = null;
-
-                    for( FilterGroup group : validators[i].getGroups() )
-                    {
-                        if( group.isExclude() )
-                        {
-                            excludeGroup = group;
-                            break;
-                        }
-                    }
-
-                    String customJSPFolderPattern =
-                        customFolder.getFullPath().makeRelativeTo( customFolder.getProject().getFullPath() ).toPortableString();
-
-                    FilterRule folderRule =
-                        FilterRule.createFile( customJSPFolderPattern, true, FilterRule.File.FileTypeFolder );
-
-                    if( excludeGroup == null )
-                    {
-                        excludeGroup = FilterGroup.create( true, new FilterRule[] { folderRule } );
-                        validators[i].add( excludeGroup );
-                    }
-                    else
-                    {
-                        boolean hasCustomJSPFolderRule = false;
-
-                        for( FilterRule rule : excludeGroup.getRules() )
-                        {
-                            if( customJSPFolderPattern.equals( rule.getPattern() ) )
-                            {
-                                hasCustomJSPFolderRule = true;
-                                break;
-                            }
-                        }
-
-                        if( !hasCustomJSPFolderRule )
-                        {
-                            validators[i].replaceFilterGroup(
-                                excludeGroup, FilterGroup.addRule( excludeGroup, folderRule ) );
-                        }
-                    }
-
-                }
-            }
-
-            ProjectConfiguration pc = ConfigurationManager.getManager().getProjectConfiguration( project );
-            pc.setDoesProjectOverride( true );
-
-            ProjectPreferences pp = new ProjectPreferences( project, true, false, null );
-
-            ValPrefManagerProject vpm = new ValPrefManagerProject( project );
-            vpm.savePreferences( pp, validators );
-        }
-        catch( Exception e )
-        {
-            HookCore.logError( "Unable to add jsp syntax validation folder exclude rule.", e ); //$NON-NLS-1$
-        }
-    }
-
     protected IStatus checkDescriptorFile( IProject project )
     {
-        IVirtualFolder webappRoot = CoreUtil.getDocroot( project );
+        final IFolder webappRoot = LiferayCore.create( project ).getDefaultDocrootFolder();
 
         if( webappRoot == null )
         {
@@ -208,49 +123,38 @@ public class AddHookOperation extends AbstractDataModelOperation implements INew
         }
 
         // IDE-648 IDE-110
-        for( IContainer container : webappRoot.getUnderlyingFolders() )
+        final Path path = new Path( "WEB-INF/" + ILiferayConstants.LIFERAY_HOOK_XML_FILE ); //$NON-NLS-1$
+        final IFile hookDescriptorFile = webappRoot.getFile( path );
+
+        if( ! hookDescriptorFile.exists() )
         {
-            if( container != null && container.exists() )
+            try
             {
-                final Path path = new Path( "WEB-INF/" + ILiferayConstants.LIFERAY_HOOK_XML_FILE ); //$NON-NLS-1$
-                IFile hookDescriptorFile = container.getFile( path );
-
-                if( !hookDescriptorFile.exists() )
-                {
-                    try
-                    {
-                        createDefaultHookDescriptorFile( hookDescriptorFile );
-
-                        break;
-                    }
-                    catch( Exception ex )
-                    {
-                        return HookCore.createErrorStatus( ex );
-                    }
-                }
+                createDefaultHookDescriptorFile( hookDescriptorFile );
+            }
+            catch( Exception ex )
+            {
+                return HookCore.createErrorStatus( ex );
             }
         }
 
         return Status.OK_STATUS;
     }
 
-    protected IFile copyPortalJSPToProject( String portalJsp, IFolder customFolder ) throws Exception
+    protected IFile copyPortalJSPToProject( IPath portalDir, String portalJsp, IFolder customFolder )
+        throws Exception
     {
-        ILiferayProject liferayProject = LiferayCore.create( getTargetProject() );
+        final IPath portalJspPath = new Path( portalJsp );
 
-        IPath portalDir = liferayProject.getAppServerPortalDir();
+        final IPath originalPortalJspPath = portalDir.append( portalJsp );
 
-        IPath portalJspPath = new Path( portalJsp );
+        final IFile newJspFile = customFolder.getFile( portalJspPath );
 
-        IPath originalPortalJspPath = portalDir.append( portalJsp );
+        CoreUtil.prepareFolder( (IFolder) newJspFile.getParent() );
 
         if( originalPortalJspPath.toFile().exists() )
         {
-            IFile newJspFile = customFolder.getFile( portalJspPath );
-
-            CoreUtil.prepareFolder( (IFolder) newJspFile.getParent() );
-
-            FileInputStream fis = new FileInputStream( originalPortalJspPath.toFile() );
+            final FileInputStream fis = new FileInputStream( originalPortalJspPath.toFile() );
 
             if( newJspFile.exists() )
             {
@@ -260,18 +164,24 @@ public class AddHookOperation extends AbstractDataModelOperation implements INew
             {
                 newJspFile.create( fis, true, null );
             }
-
-            return newJspFile;
+        }
+        else
+        {
+            CoreUtil.createEmptyFile( newJspFile );
         }
 
-        return null;
+        return newJspFile;
     }
 
     protected IStatus createCustomJSPs( IDataModel dm )
     {
         IProject project = getTargetProject();
 
-        String customFolderValue = dm.getStringProperty( CUSTOM_JSPS_FOLDER );
+        IFolder defaultWebappRootFolder = LiferayCore.create( project ).getDefaultDocrootFolder();
+
+        String customJSPsFolder = dm.getStringProperty( CUSTOM_JSPS_FOLDER );
+
+        String customFolderValue = defaultWebappRootFolder.getFullPath().append( customJSPsFolder ).toPortableString();
 
         IFolder customFolder = (IFolder) project.getWorkspace().getRoot().getFolder( new Path( customFolderValue ) );
 
@@ -284,39 +194,53 @@ public class AddHookOperation extends AbstractDataModelOperation implements INew
             return HookCore.createErrorStatus( e );
         }
 
-        List<String[]> customJsps = (List<String[]>) dm.getProperty( CUSTOM_JSPS_ITEMS );
+        final List<String[]> customJsps = (List<String[]>) dm.getProperty( CUSTOM_JSPS_ITEMS );
+        final ILiferayProject liferayProject = LiferayCore.create( getTargetProject() );
 
-        if( customJsps != null )
+        final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+        IStatus status = null;
+
+        if( portal != null )
         {
-            for( String[] customJsp : customJsps )
+            final IPath portalDir = portal.getAppServerPortalDir();
+
+            if( customJsps != null && portalDir != null )
             {
-                try
+                for( String[] customJsp : customJsps )
                 {
-                    IFile copiedFile = copyPortalJSPToProject( customJsp[0], customFolder );
-
-                    if( copiedFile != null )
+                    try
                     {
-                        Set<IFile> jspFilesCreated = (Set<IFile>) dm.getProperty( CUSTOM_JSPS_FILES_CREATED );
+                        IFile copiedFile = copyPortalJSPToProject( portalDir, customJsp[0], customFolder );
 
-                        jspFilesCreated.add( copiedFile );
+                        if( copiedFile != null )
+                        {
+                            Set<IFile> jspFilesCreated = (Set<IFile>) dm.getProperty( CUSTOM_JSPS_FILES_CREATED );
 
-                        dm.setProperty( CUSTOM_JSPS_FILES_CREATED, jspFilesCreated );
+                            jspFilesCreated.add( copiedFile );
+
+                            dm.setProperty( CUSTOM_JSPS_FILES_CREATED, jspFilesCreated );
+                        }
+                    }
+                    catch( Exception e )
+                    {
+                        HookCore.logError( e );
                     }
                 }
-                catch( Exception e )
-                {
-                    HookCore.logError( e );
-                }
+            }
+
+            HookDescriptorHelper hookDescHelper = new HookDescriptorHelper( getTargetProject() );
+
+            status = hookDescHelper.setCustomJSPDir( this.model );
+
+            if( this.model.getBooleanProperty( DISABLE_CUSTOM_JSP_FOLDER_VALIDATION ) )
+            {
+                HookUtil.configureJSPSyntaxValidationExclude( getTargetProject(), customFolder, true );
             }
         }
-
-        HookDescriptorHelper hookDescHelper = new HookDescriptorHelper( getTargetProject() );
-
-        IStatus status = hookDescHelper.setCustomJSPDir( this.model );
-
-        if( this.model.getBooleanProperty( DISABLE_CUSTOM_JSP_FOLDER_VALIDATION ) )
+        else
         {
-            addJSPSyntaxValidationExclude( customFolder );
+            status = HookCore.createErrorStatus( "Could not get portal info from project " + project.getName() );
         }
 
         return status;
@@ -358,8 +282,6 @@ public class AddHookOperation extends AbstractDataModelOperation implements INew
 
                     if( createdFile != null )
                     {
-                        createdFile.setCharset( "UTF-8", null ); //$NON-NLS-1$
-
                         Set<IFile> languageFilesCreated =
                             (Set<IFile>) dm.getProperty( LANGUAGE_PROPERTIES_FILES_CREATED );
 
@@ -399,16 +321,9 @@ public class AddHookOperation extends AbstractDataModelOperation implements INew
             }
         }
 
-        if( languageProperties.size() > 0 )
-        {
-            IStatus status = hookDescHelper.addLanguageProperties( languageProperties );
+        IStatus status = hookDescHelper.addLanguageProperties( languageProperties );
 
-            return status;
-        }
-        else
-        {
-            return HookCore.createErrorStatus( "Could not add language-properties to hook descriptor file." ); //$NON-NLS-1$
-        }
+        return status;
 
     }
 

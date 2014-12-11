@@ -13,6 +13,7 @@
 package com.liferay.ide.server.tomcat.core;
 
 import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.ide.project.core.util.ProjectUtil;
 import com.liferay.ide.server.core.ILiferayServerBehavior;
 import com.liferay.ide.server.tomcat.core.util.LiferayTomcatUtil;
 import com.liferay.ide.server.util.LiferayPublishHelper;
@@ -24,10 +25,13 @@ import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
 
+import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
@@ -50,10 +54,13 @@ import org.w3c.dom.Document;
 
 /**
  * @author gregory.amerson@liferay.com
+ * @author Simon Jiang
  */
-@SuppressWarnings( "restriction" )
+@SuppressWarnings( { "restriction", "rawtypes" } )
 public class LiferayTomcatServerBehavior extends TomcatServerBehaviour implements ILiferayServerBehavior
 {
+
+    private List<IModule[]> redeployModules;
 
     public LiferayTomcatServerBehavior()
     {
@@ -61,29 +68,39 @@ public class LiferayTomcatServerBehavior extends TomcatServerBehaviour implement
     }
 
     @Override
-    protected void publishModule( int kind, int deltaKind, IModule[] moduleTree, IProgressMonitor monitor )
+    protected MultiStatus executePublishers(
+        int kind, List<IModule[]> modules, List<Integer> deltaKinds, IProgressMonitor monitor, IAdaptable info )
         throws CoreException
     {
+        return super.executePublishers(
+            kind, ( redeployModules == null ) ? modules : redeployModules, deltaKinds, monitor, info );
+    }
 
-        boolean shouldPublishModule =
-            LiferayPublishHelper.prePublishModule(
-                this, kind, deltaKind, moduleTree, getPublishedResourceDelta( moduleTree ), monitor );
+    public IPath getDeployedPath( IModule[] module )
+    {
+        return getModuleDeployDirectory( module[0] );
+    }
 
-        if( shouldPublishModule )
+    @Override
+    public IPath getModuleDeployDirectory( IModule module )
+    {
+        final IPath defaultPath = super.getModuleDeployDirectory( module );
+
+        IPath updatedPath = null;
+
+        if( defaultPath != null && defaultPath.lastSegment() != null )
         {
-            if( getServer().getServerState() != IServer.STATE_STOPPED )
+            final IProject project = module.getProject();
+            final String requiredSuffix = ProjectUtil.getRequiredSuffix( project );
+
+            if( requiredSuffix != null && ! defaultPath.lastSegment().endsWith( requiredSuffix ) )
             {
-                if( deltaKind == ServerBehaviourDelegate.ADDED || deltaKind == ServerBehaviourDelegate.REMOVED )
-                    setServerRestartState( true );
+                String lastSegment = defaultPath.lastSegment();
+                updatedPath = defaultPath.removeLastSegments( 1 ).append( lastSegment + requiredSuffix );
             }
+        }
 
-            setModulePublishState( moduleTree, IServer.PUBLISH_STATE_NONE );
-        }
-        else
-        {
-            // wasn't able to publish module, should set to needs full publish
-            setModulePublishState( moduleTree, IServer.PUBLISH_STATE_FULL );
-        }
+        return updatedPath == null ? defaultPath : updatedPath;
     }
 
     public LiferayTomcatServer getLiferayTomcatServer()
@@ -99,6 +116,11 @@ public class LiferayTomcatServerBehavior extends TomcatServerBehaviour implement
     public IModuleResource[] getResources( IModule[] module )
     {
         return super.getResources( module );
+    }
+
+    public List<IModule[]> getRedeployModules()
+    {
+        return redeployModules;
     }
 
     public IStatus moveContextToAutoDeployDir(
@@ -134,14 +156,26 @@ public class LiferayTomcatServerBehavior extends TomcatServerBehaviour implement
 
             Context context = publishedInstance.createContext( -1 );
             context.setReloadable( "true" ); //$NON-NLS-1$
-            context.setSource( "org.eclipse.jst.jee.server:" + module.getName() ); //$NON-NLS-1$
+
+            final String moduleName = module.getName();
+            final String requiredSuffix = ProjectUtil.getRequiredSuffix( module.getProject() );
+
+            String contextName = moduleName;
+
+            if( ! moduleName.endsWith( requiredSuffix ) )
+            {
+                contextName = moduleName + requiredSuffix;
+            }
+
+            context.setSource( "org.eclipse.jst.jee.server:" + contextName ); //$NON-NLS-1$
 
             if( Boolean.valueOf( context.getAttributeValue( "antiResourceLocking" ) ).booleanValue() ) //$NON-NLS-1$
             {
                 context.setAttributeValue( "antiResourceLocking", "false" ); //$NON-NLS-1$ //$NON-NLS-2$
             }
 
-            File contextFile = new File( contextDir, module.getName() + ".xml" ); //$NON-NLS-1$
+            File contextFile = new File( contextDir, contextName + ".xml" ); //$NON-NLS-1$
+
             if( !LiferayTomcatUtil.isExtProjectContext( context ) )
             {
                 // If requested, remove path attribute
@@ -188,6 +222,84 @@ public class LiferayTomcatServerBehavior extends TomcatServerBehaviour implement
     }
 
     @Override
+    protected void publishFinish( IProgressMonitor monitor ) throws CoreException
+    {
+        super.publishFinish( monitor );
+
+        this.redeployModules = null;
+    }
+
+    @Override
+    protected void publishModule( int kind, int deltaKind, IModule[] moduleTree, IProgressMonitor monitor )
+        throws CoreException
+    {
+        boolean shouldPublishModule =
+            LiferayPublishHelper.prePublishModule(
+                this, kind, deltaKind, moduleTree, getPublishedResourceDelta( moduleTree ), monitor );
+
+        if( shouldPublishModule )
+        {
+            if( getServer().getServerState() != IServer.STATE_STOPPED )
+            {
+                if( deltaKind == ServerBehaviourDelegate.ADDED || deltaKind == ServerBehaviourDelegate.REMOVED )
+                {
+                    setServerRestartState( true );
+                }
+            }
+
+            setModulePublishState( moduleTree, IServer.PUBLISH_STATE_NONE );
+        }
+        else
+        {
+            // wasn't able to publish module, should set to needs full publish
+            setModulePublishState( moduleTree, IServer.PUBLISH_STATE_FULL );
+        }
+    }
+
+    @Override
+    protected void publishModules( int kind, List modules, List deltaKind2, MultiStatus multi, IProgressMonitor monitor )
+    {
+        super.publishModules( kind, ( redeployModules == null ) ? modules : redeployModules, deltaKind2, multi, monitor );
+    }
+
+    public void redeployModule( IModule[] module )
+    {
+
+        setModulePublishState( module, IServer.PUBLISH_STATE_FULL );
+
+        IAdaptable info = new IAdaptable()
+        {
+
+            public Object getAdapter( Class adapter )
+            {
+                if( String.class.equals( adapter ) )
+                {
+                    return "user"; //$NON-NLS-1$
+                }
+
+                return null;
+            }
+        };
+
+        final List<IModule[]> modules = new ArrayList<IModule[]>();
+        modules.add( module );
+
+        try
+        {
+            redeployModules = modules;
+            publish( IServer.PUBLISH_FULL, modules, null, info );
+        }
+        catch( CoreException e )
+        {
+            LiferayTomcatPlugin.logError( "redploying module " + module[0].getName() + " failed.", e );
+        }
+        finally
+        {
+            redeployModules = null;
+        }
+    }
+
+    @Override
     public void setupLaunchConfiguration( ILaunchConfigurationWorkingCopy workingCopy, IProgressMonitor monitor )
         throws CoreException
     {
@@ -222,13 +334,6 @@ public class LiferayTomcatServerBehavior extends TomcatServerBehaviour implement
 
             workingCopy.setAttribute( IJavaLaunchConfigurationConstants.ATTR_VM_ARGUMENTS, fixedArgs );
         }
-    }
-
-    public void redeployModule( IModule[] module )
-    {
-
-        getServer().publish( IServer.PUBLISH_FULL, null );
-
     }
 
 }

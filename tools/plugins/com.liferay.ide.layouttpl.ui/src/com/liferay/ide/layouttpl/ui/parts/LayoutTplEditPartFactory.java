@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,9 +15,9 @@
 
 package com.liferay.ide.layouttpl.ui.parts;
 
-import com.liferay.ide.layouttpl.ui.model.LayoutTplDiagram;
-import com.liferay.ide.layouttpl.ui.model.PortletColumn;
-import com.liferay.ide.layouttpl.ui.model.PortletLayout;
+import com.liferay.ide.layouttpl.core.model.LayoutTplElement;
+import com.liferay.ide.layouttpl.core.model.PortletColumnElement;
+import com.liferay.ide.layouttpl.core.model.PortletLayoutElement;
 
 import org.eclipse.gef.EditPart;
 import org.eclipse.gef.EditPartFactory;
@@ -27,6 +27,10 @@ import org.eclipse.gef.EditPartFactory;
  */
 public class LayoutTplEditPartFactory implements EditPartFactory
 {
+
+    public LayoutTplEditPartFactory()
+    {
+    }
 
     public EditPart createEditPart( EditPart context, Object modelElement )
     {
@@ -41,17 +45,17 @@ public class LayoutTplEditPartFactory implements EditPartFactory
 
     protected EditPart getPartForElement( Object modelElement )
     {
-        if( modelElement instanceof LayoutTplDiagram )
+        if( modelElement instanceof LayoutTplElement )
         {
             return new LayoutTplDiagramEditPart();
         }
 
-        if( modelElement instanceof PortletLayout )
+        if( modelElement instanceof PortletLayoutElement )
         {
             return new PortletLayoutEditPart();
         }
 
-        if( modelElement instanceof PortletColumn )
+        if( modelElement instanceof PortletColumnElement )
         {
             return new PortletColumnEditPart();
         }

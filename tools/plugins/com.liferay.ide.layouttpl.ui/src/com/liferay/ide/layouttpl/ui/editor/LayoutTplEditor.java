@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -10,424 +10,402 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
  * details.
- *
- * Contributors:
- *      Gregory Amerson - initial implementation and ongoing maintenance
  *******************************************************************************/
 
 package com.liferay.ide.layouttpl.ui.editor;
 
-import com.liferay.ide.layouttpl.core.model.LayoutTplDiagramElement;
+import com.liferay.ide.core.ILiferayConstants;
+import com.liferay.ide.core.ILiferayPortal;
+import com.liferay.ide.core.ILiferayProject;
+import com.liferay.ide.core.LiferayCore;
+import com.liferay.ide.core.util.CoreUtil;
+import com.liferay.ide.layouttpl.core.model.LayoutTplElement;
+import com.liferay.ide.layouttpl.core.model.LayoutTplElementsFactory;
 import com.liferay.ide.layouttpl.core.util.LayoutTplUtil;
-import com.liferay.ide.layouttpl.ui.LayoutTplUI;
-import com.liferay.ide.layouttpl.ui.action.LayoutTplEditorSelectAllAction;
-import com.liferay.ide.layouttpl.ui.model.LayoutTplDiagram;
-import com.liferay.ide.layouttpl.ui.model.LayoutTplDiagramUIFactory;
-import com.liferay.ide.layouttpl.ui.parts.LayoutTplEditPartFactory;
-import com.liferay.ide.layouttpl.ui.parts.LayoutTplRootEditPart;
 
-import java.util.EventObject;
+import java.lang.reflect.Method;
 
-import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.resources.IFile;
+import org.eclipse.core.runtime.IExecutableExtension;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.Path;
-import org.eclipse.gef.ContextMenuProvider;
-import org.eclipse.gef.DefaultEditDomain;
-import org.eclipse.gef.GraphicalViewer;
-import org.eclipse.gef.commands.Command;
-import org.eclipse.gef.commands.UnexecutableCommand;
-import org.eclipse.gef.dnd.TemplateTransferDragSourceListener;
-import org.eclipse.gef.dnd.TemplateTransferDropTargetListener;
-import org.eclipse.gef.palette.PaletteRoot;
-import org.eclipse.gef.requests.CreateRequest;
-import org.eclipse.gef.requests.CreationFactory;
-import org.eclipse.gef.requests.SimpleFactory;
-import org.eclipse.gef.ui.actions.ActionRegistry;
-import org.eclipse.gef.ui.actions.SelectAllAction;
-import org.eclipse.gef.ui.palette.FlyoutPaletteComposite;
-import org.eclipse.gef.ui.palette.FlyoutPaletteComposite.FlyoutPreferences;
-import org.eclipse.gef.ui.palette.PaletteViewer;
-import org.eclipse.gef.ui.palette.PaletteViewerProvider;
-import org.eclipse.gef.ui.parts.GraphicalEditorWithFlyoutPalette;
-import org.eclipse.gef.ui.parts.GraphicalViewerImpl;
-import org.eclipse.gef.ui.parts.GraphicalViewerKeyHandler;
-import org.eclipse.gef.ui.parts.SelectionSynchronizer;
-import org.eclipse.gef.ui.parts.TreeViewer;
 import org.eclipse.jface.text.IDocument;
-import org.eclipse.jface.util.TransferDropTargetListener;
-import org.eclipse.swt.dnd.DND;
-import org.eclipse.swt.events.PaintEvent;
-import org.eclipse.swt.events.PaintListener;
-import org.eclipse.swt.widgets.Composite;
-import org.eclipse.ui.IEditorInput;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.Event;
+import org.eclipse.sapphire.Listener;
+import org.eclipse.sapphire.ui.SapphireEditor;
+import org.eclipse.sapphire.ui.def.DefinitionLoader;
+import org.eclipse.sapphire.ui.def.DefinitionLoader.Reference;
+import org.eclipse.sapphire.ui.def.EditorPageDef;
 import org.eclipse.ui.IEditorPart;
-import org.eclipse.ui.IFileEditorInput;
-import org.eclipse.ui.actions.ActionFactory;
-import org.eclipse.ui.ide.FileStoreEditorInput;
+import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
 import org.eclipse.wst.sse.core.StructuredModelManager;
+import org.eclipse.wst.sse.core.internal.provisional.IModelStateListener;
 import org.eclipse.wst.sse.core.internal.provisional.IStructuredModel;
 import org.eclipse.wst.sse.ui.StructuredTextEditor;
 import org.eclipse.wst.xml.core.internal.provisional.document.IDOMModel;
+import org.osgi.framework.Version;
+
 
 /**
- * @author Greg Amerson
- * @author Cindy Li
+ * @author Kuo Zhang
+ *
  */
 @SuppressWarnings( "restriction" )
-public class LayoutTplEditor extends GraphicalEditorWithFlyoutPalette
+public class LayoutTplEditor extends SapphireEditor implements IExecutableExtension
 {
-    protected static PaletteRoot PALETTE_MODEL;
-    protected LayoutTplDiagramElement diagram;
-    protected StructuredTextEditor sourceEditor;
 
-    public LayoutTplEditor()
+    private static final int SOURCE_PAGE_INDEX = 0;
+    private static final int PREVIEW_PAGE_INDEX = 1;
+    private static final int DESIGN_PAGE_INDEX = 2;
+
+    private static final String SOURCE_PAGE_TITLE = "Source";
+    private static final String PREVIEW_PAGE_TITLE = "Preview";
+    private static final String DESIGN_PAGE_TITLE = "Design";
+
+    private StructuredTextEditor sourcePage;
+    private LayoutTplPreviewEditor previewPage;
+
+    private DefinitionLoader.Reference<EditorPageDef> definition;
+    private IDOMModel sourceModel;
+
+    private boolean isDesignPageChanged;
+    private boolean isSourceModelChanged;
+    private boolean isBootstrapStyle;
+
+    @Override
+    protected void createEditorPages() throws PartInitException
     {
-        super();
-        setEditDomain( new DefaultEditDomain( this ) );
-    }
+        this.sourcePage = new StructuredTextEditor();
+        this.sourcePage.setEditorPart( this );
 
-    public LayoutTplEditor( StructuredTextEditor sourceEditor )
-    {
-        this();
-        this.sourceEditor = sourceEditor;
-    }
+        addPage( SOURCE_PAGE_INDEX, this.sourcePage, getEditorInput() );
+        setPageText( SOURCE_PAGE_INDEX, SOURCE_PAGE_TITLE );
 
-    public void commandStackChanged( EventObject event )
-    {
-        firePropertyChange( IEditorPart.PROP_DIRTY );
+        initSourceModel();
 
-        super.commandStackChanged( event );
+        addDeferredPage( 1, PREVIEW_PAGE_TITLE, "preview" );
+        addDeferredPage( 2, DESIGN_PAGE_TITLE, "designPage" );
     }
 
     @Override
-    protected void createActions()
+    protected IEditorPart createPage( String pageDefinitionId )
     {
-        super.createActions();
+        if( "preview".equals( pageDefinitionId ) )
+        {
+            if( this.previewPage == null )
+            {
+                Element element = getModelElement();
 
-        getActionRegistry().removeAction( getActionRegistry().getAction( ActionFactory.SELECT_ALL.getId() ) );
-        SelectAllAction action = new LayoutTplEditorSelectAllAction( (LayoutTplEditor) this );
-        getActionRegistry().registerAction(action);
+                if( element instanceof LayoutTplElement )
+                {
+                    this.previewPage = new LayoutTplPreviewEditor( (LayoutTplElement) element )
+                    {
+                        @Override
+                        public String getTitle()
+                        {
+                            return "Preview";
+                        }
+                    };
+                }
+            }
+
+            return this.previewPage;
+        }
+
+        return super.createPage( pageDefinitionId );
+    }
+
+    @Override
+    protected Reference<EditorPageDef> getDefinition( String pageDefinitionId )
+    {
+        if( "preview".equals( pageDefinitionId ) )
+        {
+            if( this.definition == null )
+            {
+                this.definition = DefinitionLoader.sdef( LayoutTplEditor.class ).page( "preview" );
+            }
+
+            return this.definition;
+        }
+
+        return super.getDefinition( pageDefinitionId );
+    }
+
+    protected LayoutTplElement createEmptyDiagramModel()
+    {
+        LayoutTplElement layoutTpl = LayoutTplElement.TYPE.instantiate();
+        layoutTpl.setBootstrapStyle( isBootstrapStyle() );
+        layoutTpl.setClassName( getEditorInput().getName().replaceAll( "\\..*$", "" ) );
+
+        return layoutTpl;
+    }
+
+    @Override
+    protected Element createModel()
+    {
+        final IFile file = getFile();
+
+        isBootstrapStyle = isBootstrapStyle();
+
+        LayoutTplElement layoutTpl =
+            LayoutTplElementsFactory.INSTANCE.newLayoutTplFromFile( file, isBootstrapStyle );
+
+        if( layoutTpl == null )
+        {
+            layoutTpl = createEmptyDiagramModel();
+        }
+
+        layoutTpl.attach( new Listener()
+        {
+            @Override
+            public void handle( Event event )
+            {
+                setDesignPageChanged( true );
+                firePropertyChange( PROP_DIRTY );
+            }
+
+        }, "*" );
+
+        return layoutTpl;
     }
 
     @Override
     public void dispose()
     {
         super.dispose();
+
+        this.definition = null;
+        this.sourcePage = null;
+        this.previewPage = null;
+
+        if( this.sourceModel != null )
+        {
+            sourceModel.releaseFromEdit();
+        }
     }
 
     @Override
-    public void doSave( IProgressMonitor monitor )
+    public void doSave( final IProgressMonitor monitor )
     {
-        // IFile file = ((IFileEditorInput) getEditorInput()).getFile();
-        // try {
-        // diagram.saveToFile(file, monitor);
-        // getCommandStack().markSaveLocation();
-        // }
-        // catch (Exception e) {
-        // LayoutTplUI.logError(e);
-        // }
+        final int activePage = getActivePage();
+
+        if( activePage == PREVIEW_PAGE_INDEX )
+        {
+            if( this.sourcePage.isDirty() )
+            {
+                this.sourcePage.doSave( monitor );
+            }
+        }
+        else if( activePage == SOURCE_PAGE_INDEX )
+        {
+            if( this.sourcePage.isDirty() )
+            {
+                this.sourcePage.doSave( monitor );
+                refreshDiagramModel();
+            }
+        }
+        else if( activePage == DESIGN_PAGE_INDEX )
+        {
+            if( isDesignPageChanged )
+            {
+                refreshSourceModel();
+                this.sourcePage.doSave( monitor );
+            }
+        }
+
+        setSourceModelChanged( false );
+        setDesignPageChanged( false );
+
+        firePropertyChange( PROP_DIRTY );
+    }
+
+    @Override
+    public IContentOutlinePage getContentOutline( final Object page )
+    {
+        if( page == this.sourcePage )
+        {
+            return (IContentOutlinePage) this.sourcePage.getAdapter( IContentOutlinePage.class );
+        }
+
+        return super.getContentOutline( page );
+    }
+
+    protected void initSourceModel()
+    {
+        if( sourceModel == null )
+        {
+            if( this.sourcePage != null && this.sourcePage.getDocumentProvider() != null )
+            {
+                final IDocumentProvider documentProvider = this.sourcePage.getDocumentProvider();
+                final IDocument doc = documentProvider.getDocument( getEditorInput() );
+
+                sourceModel  =(IDOMModel) StructuredModelManager.getModelManager().getExistingModelForEdit( doc );
+
+                sourceModel.addModelStateListener( new IModelStateListener()
+                {
+
+                    public void modelAboutToBeChanged( IStructuredModel model ){}
+
+                    public void modelAboutToBeReinitialized( IStructuredModel structuredModel ){}
+
+                    public void modelChanged( IStructuredModel model )
+                    {
+                        setSourceModelChanged( true );
+                    }
+
+                    public void modelDirtyStateChanged( IStructuredModel model, boolean isDirty ){}
+
+                    public void modelReinitialized( IStructuredModel structuredModel ){}
+
+                    public void modelResourceDeleted( IStructuredModel model ){}
+
+                    public void modelResourceMoved( IStructuredModel oldModel, IStructuredModel newModel ){}
+                } );
+            }
+        }
+    }
+
+    private boolean isBootstrapStyle()
+    {
+        boolean retval = true;
 
         try
         {
-            refreshSourceModel();
-            getCommandStack().markSaveLocation();
+            final ILiferayProject lrproject = LiferayCore.create( getFile().getProject() );
+            final ILiferayPortal portal = lrproject.adapt( ILiferayPortal.class );
+            final Version version = new Version( portal.getVersion() );
+
+            if( CoreUtil.compareVersions( version,ILiferayConstants.V620 ) < 0 )
+            {
+                retval = false;
+            }
         }
         catch( Exception e )
         {
-            LayoutTplUI.logError( e );
         }
-    }
 
-    public void doSaveAs()
-    {
+        return retval;
     }
 
     @Override
-    public ActionRegistry getActionRegistry()
+    public boolean isDirty()
     {
-        return super.getActionRegistry();
-    }
-
-    @SuppressWarnings( "rawtypes" )
-    public Object getAdapter( Class type )
-    {
-        if( type == IContentOutlinePage.class )
-        {
-            return new LayoutTplOutlinePage( this, new TreeViewer() );
-        }
-
-        return super.getAdapter( type );
-    }
-
-    public LayoutTplDiagramElement getDiagram()
-    {
-        return diagram;
+        return isDesignPageChanged || this.sourcePage.isDirty();
     }
 
     @Override
-    public DefaultEditDomain getEditDomain()
+    protected void pageChange( int pageIndex )
     {
-        return super.getEditDomain();
-    }
+        final int[] lastActivePage = new int[1];
 
-    @Override
-    protected FlyoutPreferences getPalettePreferences()
-    {
-        return FlyoutPaletteComposite.createFlyoutPreferences( LayoutTplUI.getDefault().getPluginPreferences() );
-    }
-
-    @Override
-    public SelectionSynchronizer getSelectionSynchronizer()
-    {
-        return super.getSelectionSynchronizer();
-    }
-
-    public boolean isSaveAsAllowed()
-    {
-        return false;
-    }
-
-    public void refreshSourceModel()
-    {
-        IDOMModel domModel = getSourceModel();
-        domModel.aboutToChangeModel();
-        String name = getSourceFileName();
-        String templateSource = LayoutTplUtil.getTemplateSource( diagram, name );
-        domModel.getStructuredDocument().setText( this, templateSource );
-        domModel.changedModel();
-        domModel.releaseFromEdit();
-        getCommandStack().markSaveLocation();
-    }
-
-    public void refreshVisualModel()
-    {
-        IDOMModel domModel = getSourceModel( true );
-
-        if( domModel != null )
+        try
         {
-            diagram = LayoutTplDiagramElement.createFromModel( domModel, LayoutTplDiagramUIFactory.INSTANCE );
-            domModel.releaseFromRead();
+            final Method getLastActivePage = SapphireEditor.class.getDeclaredMethod( "getLastActivePage" );
+            getLastActivePage.setAccessible( true );
+            lastActivePage[0] = (Integer) getLastActivePage.invoke( this );
         }
-        else
+        catch( Exception e )
         {
-            diagram = LayoutTplDiagram.createDefaultDiagram();
         }
 
-        final GraphicalViewer viewer = getGraphicalViewer();
-        if( viewer != null )
+        if( lastActivePage[0] == SOURCE_PAGE_INDEX && pageIndex == PREVIEW_PAGE_INDEX )
         {
-            viewer.setContents( diagram );
-            refreshViewer( viewer );
-        }
-    }
-
-    public void updateActions()
-    {
-        updateActions( this.getSelectionActions() );
-    }
-
-    private void refreshViewer( final GraphicalViewer viewer )
-    {
-        viewer.getControl().addPaintListener
-        (
-            new PaintListener()
+            // if the source page is dirty, but the model didn't get changed,
+            // then don't refresh the model element
+            if( this.sourcePage.isDirty() && isSourceModelChanged )
             {
-                public void paintControl( PaintEvent e )
-                {
-                    getGraphicalViewer().getContents().refresh();// rebuild column heights if needed
-                    viewer.getControl().removePaintListener( this );
-                }
-            }
-        );
-    }
-
-    @Override
-    protected void configureGraphicalViewer()
-    {
-        super.configureGraphicalViewer();
-
-        GraphicalViewer viewer = getGraphicalViewer();
-
-        viewer.setEditPartFactory( new LayoutTplEditPartFactory() );
-
-        // viewer.setRootEditPart(new ScalableRootEditPart());
-        viewer.setRootEditPart( new LayoutTplRootEditPart() );
-        viewer.setKeyHandler( new GraphicalViewerKeyHandler( viewer ) );
-
-        // configure the context menu provider
-        ContextMenuProvider cmProvider = new LayoutTplContextMenuProvider( viewer, getActionRegistry() );
-        viewer.setContextMenu( cmProvider );
-        getSite().registerContextMenu( cmProvider, viewer );
-    }
-
-    protected void createGraphicalViewer( Composite parent )
-    {
-        // GraphicalViewer viewer = new ScrollingGraphicalViewer();
-        GraphicalViewer viewer = new GraphicalViewerImpl();
-        viewer.createControl( parent );
-        setGraphicalViewer( viewer );
-        configureGraphicalViewer();
-        hookGraphicalViewer();
-        initializeGraphicalViewer();
-    }
-
-    protected PaletteViewerProvider createPaletteViewerProvider()
-    {
-        return new PaletteViewerProvider( getEditDomain() )
-        {
-            protected void configurePaletteViewer( PaletteViewer viewer )
-            {
-                super.configurePaletteViewer( viewer );
-                viewer.setPaletteViewerPreferences( new LayoutTplPaletteViewerPreferences() );
-                // FlyoutPreferences preferences = getPalettePreferences();
-                // preferences.setPaletteState(FlyoutPaletteComposite.STATE_PINNED_OPEN);
-                // create a drag source listener for this palette viewer
-                // together with an appropriate transfer drop target listener,
-                // this will enable
-                // model element creation by dragging a
-                // CombinatedTemplateCreationEntries
-                // from the palette into the editor
-                viewer.addDragSourceListener( new TemplateTransferDragSourceListener( viewer ) );
-            }
-        };
-    }
-
-    /**
-     * Create a transfer drop target listener. When using a CombinedTemplateCreationEntry tool in the palette, this will
-     * enable model element creation by dragging from the palette.
-     *
-     * @see #createPaletteViewerProvider()
-     */
-    protected TransferDropTargetListener createTransferDropTargetListener()
-    {
-        return new TemplateTransferDropTargetListener( getGraphicalViewer() )
-        {
-            protected CreationFactory getFactory( Object template )
-            {
-                if( template instanceof PortletLayoutTemplate )
-                {
-                    PortletLayoutTemplate portletLayoutTemplate = (PortletLayoutTemplate) template;
-
-                    return new PortletLayoutFactory(
-                        portletLayoutTemplate.getNumCols(), portletLayoutTemplate.getWeights() );
-                }
-
-                return new SimpleFactory( (Class<?>) template );
+                refreshDiagramModel();
             }
 
-            @Override
-            protected void updateTargetRequest()
-            {
-                this.updateTargetEditPart();
-                CreateRequest request = getCreateRequest();
-                request.setLocation( getDropLocation() );
-                Command command = this.getTargetEditPart().getCommand( request );
-
-                // detect if we are in an invalid create request
-                if( command == null || command.equals( UnexecutableCommand.INSTANCE ))
-                {
-                    getCurrentEvent().detail = DND.DROP_NONE;
-                    getCurrentEvent().feedback = DND.FEEDBACK_NONE;
-                }
-            }
-        };
-    }
-
-    protected PaletteRoot getPaletteRoot()
-    {
-        if( PALETTE_MODEL == null )
-        {
-            PALETTE_MODEL = LayoutTplEditorPaletteFactory.createPalette();
+            refreshPreviewPage();
         }
 
-        return PALETTE_MODEL;
-    }
-
-    protected String getSourceFileName()
-    {
-        IEditorInput editorInput = getEditorInput();
-
-        IPath path = null;
-
-        if( editorInput instanceof IFileEditorInput )
+        if( lastActivePage[0] == SOURCE_PAGE_INDEX && pageIndex == DESIGN_PAGE_INDEX )
         {
-            path = ( (IFileEditorInput) editorInput ).getFile().getFullPath();
-        }
-        else if( editorInput instanceof FileStoreEditorInput )
-        {
-            path = new Path( ( (FileStoreEditorInput) editorInput ).getURI().getPath() );
-        }
-
-        if( path == null )
-        {
-            return editorInput.getName();
-        }
-
-        return path.removeFileExtension().lastSegment();
-    }
-
-    protected IDOMModel getSourceModel()
-    {
-        return getSourceModel( false );
-    }
-
-    protected IDOMModel getSourceModel( boolean readOnly )
-    {
-        IDOMModel domModel = null;
-
-        if( this.sourceEditor != null && this.sourceEditor.getDocumentProvider() != null )
-        {
-            IDocumentProvider documentProvider = this.sourceEditor.getDocumentProvider();
-            IDocument doc = documentProvider.getDocument( getEditorInput() );
-            IStructuredModel model;
-
-            if( readOnly )
+            if( this.sourcePage.isDirty() && isSourceModelChanged )
             {
-                model = StructuredModelManager.getModelManager().getExistingModelForRead( doc );
-            }
-            else
-            {
-                model = StructuredModelManager.getModelManager().getExistingModelForEdit( doc );
-            }
-
-            if( model instanceof IDOMModel )
-            {
-                domModel = (IDOMModel) model;
+                refreshDiagramModel();
             }
         }
 
-        return domModel;
+        if( lastActivePage[0] == DESIGN_PAGE_INDEX && pageIndex == SOURCE_PAGE_INDEX )
+        {
+            if( isDesignPageChanged )
+            {
+                refreshSourceModel();
+            }
+        }
+
+        if( lastActivePage[0] == DESIGN_PAGE_INDEX && pageIndex == PREVIEW_PAGE_INDEX )
+        {
+            if( isDesignPageChanged )
+            {
+                refreshSourceModel();
+            }
+
+            refreshPreviewPage();
+        }
+
+        super.pageChange( pageIndex );
     }
 
-    protected void initializeGraphicalViewer()
+    protected void refreshDiagramModel()
     {
-        super.initializeGraphicalViewer();
-        final GraphicalViewer viewer = getGraphicalViewer();
-        viewer.setContents( getDiagram() ); // set the contents of this editor
-        refreshViewer( viewer );
+        LayoutTplElement newElement = LayoutTplElementsFactory.INSTANCE.newLayoutTplFromFile( getFile(), isBootstrapStyle );
 
-        // listen for dropped parts
-        viewer.addDropTargetListener( createTransferDropTargetListener() );
+        if( newElement == null )
+        {
+            // create an empty model for diagram in memory, but not write to source
+            newElement = createEmptyDiagramModel();
+        }
+
+        Element model = getModelElement();
+        model.clear();
+        model.copy( newElement );
     }
 
-    protected void setInput( IEditorInput input )
+    protected void refreshPreviewPage()
     {
-        super.setInput( input );
-
-        refreshVisualModel();
-
-        setPartName( input.getName() );
-
-        // try {
-        // IFile file = ((IFileEditorInput) input).getFile();
-        // setPartName(file.getName());
-        // diagram = LayoutTplDiagram.createFromFile(file);
-        // }
-        // catch (Exception e) {
-        // LayoutTplUI.logError(e);
-        // }
+        if( this.previewPage != null )
+        {
+            this.previewPage.refreshVisualModel( (LayoutTplElement) getModelElement() );
+        }
     }
 
+    protected void refreshSourceModel()
+    {
+        refreshSourceModel( (LayoutTplElement) getModelElement() );
+    }
+
+    protected void refreshSourceModel( LayoutTplElement modelElement )
+    {
+        if( this.sourceModel != null )
+        {
+            final String templateSource = LayoutTplUtil.getTemplateSource( modelElement );
+
+            sourceModel.aboutToChangeModel();
+            sourceModel.getStructuredDocument().setText( this, templateSource );
+            sourceModel.changedModel();
+        }
+
+        setSourceModelChanged( false );
+    }
+
+//    @Override
+//    protected void setActivePage( int pageIndex )
+//    {
+//        super.setActivePage( pageIndex );
+//    }
+
+    protected void setDesignPageChanged( boolean changed )
+    {
+        isDesignPageChanged = changed;
+    }
+
+    protected void setSourceModelChanged( boolean changed )
+    {
+        this.isSourceModelChanged = changed;
+    }
 }

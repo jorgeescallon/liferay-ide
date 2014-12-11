@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -18,16 +18,15 @@ package com.liferay.ide.service.core.model;
 import com.liferay.ide.service.core.model.internal.ColumnImageService;
 import com.liferay.ide.service.core.model.internal.TypePossibleValuesService;
 
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.ElementType;
+import org.eclipse.sapphire.PossibleValues;
 import org.eclipse.sapphire.Since;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelElementType;
-import org.eclipse.sapphire.modeling.Value;
-import org.eclipse.sapphire.modeling.ValueProperty;
+import org.eclipse.sapphire.Value;
+import org.eclipse.sapphire.ValueProperty;
 import org.eclipse.sapphire.modeling.annotations.DefaultValue;
 import org.eclipse.sapphire.modeling.annotations.Documentation;
-import org.eclipse.sapphire.modeling.annotations.GenerateImpl;
 import org.eclipse.sapphire.modeling.annotations.Label;
-import org.eclipse.sapphire.modeling.annotations.PossibleValues;
 import org.eclipse.sapphire.modeling.annotations.Required;
 import org.eclipse.sapphire.modeling.annotations.Service;
 import org.eclipse.sapphire.modeling.annotations.Type;
@@ -37,12 +36,11 @@ import org.eclipse.sapphire.modeling.xml.annotations.XmlBinding;
  * @author Gregory Amerson
  * @author Cindy Li
  */
-@GenerateImpl
 @Service( impl = ColumnImageService.class )
-public interface Column extends IModelElement
+public interface Column extends Element
 {
 
-    ModelElementType TYPE = new ModelElementType( Column.class );
+    ElementType TYPE = new ElementType( Column.class );
 
     // *** Name ***
 

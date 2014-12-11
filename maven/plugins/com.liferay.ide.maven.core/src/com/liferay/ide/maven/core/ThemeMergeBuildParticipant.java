@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -14,6 +14,7 @@
  *******************************************************************************/
 package com.liferay.ide.maven.core;
 
+import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.theme.core.ThemeCSSBuilder;
 
 import java.util.Set;
@@ -21,16 +22,20 @@ import java.util.Set;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.SubProgressMonitor;
+import org.eclipse.m2e.core.internal.IMavenConstants;
 import org.eclipse.m2e.core.project.IMavenProjectFacade;
 import org.eclipse.osgi.util.NLS;
 
 
 /**
  * @author Gregory Amerson
+ * @author Simon Jiang
  */
+@SuppressWarnings( "restriction" )
 public class ThemeMergeBuildParticipant extends ThemePluginBuildParticipant
 {
 
@@ -69,11 +74,18 @@ public class ThemeMergeBuildParticipant extends ThemePluginBuildParticipant
 
         final IResourceDelta delta = this.getDelta( facade.getProject() );
 
-        //TODO don't hard code path of src/main/webapp/css
-        if( delta != null && ( delta.findMember( new Path( "src/main/webapp" ) ) != null || //$NON-NLS-1$
-            delta.findMember( new Path( "pom.xml" ) ) != null ) ) //$NON-NLS-1$
+        final String warSourceDirectory = MavenUtil.getWarSourceDirectory( facade );
+
+        if( ! CoreUtil.isNullOrEmpty( warSourceDirectory ) )
         {
-            retval = true;
+            final IPath warSourceProjectPath =
+                facade.getProject().getFolder( warSourceDirectory ).getProjectRelativePath();
+
+            if( delta != null && ( delta.findMember( warSourceProjectPath ) != null ||
+                delta.findMember( new Path( IMavenConstants.POM_FILE_NAME ) ) != null ) )
+            {
+                retval = true;
+            }
         }
 
         return retval;

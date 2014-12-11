@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,11 +15,16 @@
 package com.liferay.ide.maven.ui;
 
 import com.liferay.ide.core.ILiferayConstants;
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.ILiferayProjectAdapter;
 import com.liferay.ide.core.util.CoreUtil;
-import com.liferay.ide.maven.core.LiferayMavenProject;
+import com.liferay.ide.maven.core.FacetedMavenProject;
+import com.liferay.ide.maven.core.IMavenProject;
 import com.liferay.ide.project.core.IProjectBuilder;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.osgi.framework.Version;
 
@@ -32,23 +37,41 @@ import org.osgi.framework.Version;
  */
 public class MavenProjectAdapter implements ILiferayProjectAdapter
 {
+    private static Pattern majorMinor = Pattern.compile( "([0-9]+)\\.([0-9]+).*" );
 
     public <T> T adapt( ILiferayProject liferayProject, Class<T> adapterType )
     {
-        if( liferayProject instanceof LiferayMavenProject && IProjectBuilder.class.equals( adapterType ) )
+        if( liferayProject instanceof IMavenProject && IProjectBuilder.class.equals( adapterType ) )
         {
             // only use this builder for versions of Liferay less than 6.2
-            String version = liferayProject.getPortalVersion();
+            final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
 
-            if( ! CoreUtil.isNullOrEmpty( version ) )
+            if( portal != null )
             {
-                final Version portalVersion = new Version( version );
+                final String version = portal.getVersion();
 
-                if( CoreUtil.compareVersions( portalVersion, ILiferayConstants.V620 ) < 0 )
+                if( !CoreUtil.isNullOrEmpty( version ) )
                 {
-                    MavenUIProjectBuilder builder = new MavenUIProjectBuilder( (LiferayMavenProject) liferayProject );
+                    // we only need to match the first 2 characters
+                    final Matcher matcher = majorMinor.matcher( version );
 
-                    return adapterType.cast( builder );
+                    String matchedVersion = null;
+
+                    if( matcher.find() && matcher.groupCount() == 2 )
+                    {
+                        matchedVersion = matcher.group( 1 ) + "." + matcher.group( 2 ) + ".0";
+                    }
+
+                    final Version portalVersion =
+                        new Version( matchedVersion != null ? matchedVersion : version );
+
+                    if( CoreUtil.compareVersions( portalVersion, ILiferayConstants.V620 ) < 0 )
+                    {
+                        MavenUIProjectBuilder builder =
+                            new MavenUIProjectBuilder( (FacetedMavenProject) liferayProject );
+
+                        return adapterType.cast( builder );
+                    }
                 }
             }
         }

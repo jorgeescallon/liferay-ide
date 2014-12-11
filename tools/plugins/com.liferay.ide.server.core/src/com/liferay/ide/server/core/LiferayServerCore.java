@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -18,26 +18,47 @@ package com.liferay.ide.server.core;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.core.util.CoreUtil;
 import com.liferay.ide.core.util.StringPool;
+import com.liferay.ide.sdk.core.ISDKListener;
+import com.liferay.ide.sdk.core.SDKManager;
+import com.liferay.ide.server.core.portal.OsgiConnection;
+import com.liferay.ide.server.core.portal.OsgiConnectionImpl;
+import com.liferay.ide.server.core.portal.PortalBundle;
+import com.liferay.ide.server.core.portal.PortalRuntime;
 import com.liferay.ide.server.remote.IRemoteServer;
 import com.liferay.ide.server.remote.IServerManagerConnection;
 import com.liferay.ide.server.remote.ServerManagerConnection;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.Plugin;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.wst.server.core.IRuntime;
+import org.eclipse.wst.server.core.IRuntimeLifecycleListener;
+import org.eclipse.wst.server.core.IRuntimeType;
 import org.eclipse.wst.server.core.IServer;
 import org.eclipse.wst.server.core.IServerLifecycleListener;
+import org.eclipse.wst.server.core.IServerType;
 import org.eclipse.wst.server.core.ServerCore;
+import org.eclipse.wst.server.core.internal.Base;
+import org.eclipse.wst.server.core.internal.IMemento;
+import org.eclipse.wst.server.core.internal.XMLMemento;
 import org.eclipse.wst.server.core.model.RuntimeDelegate;
 import org.osgi.framework.BundleContext;
 
@@ -45,8 +66,10 @@ import org.osgi.framework.BundleContext;
  * The activator class controls the plugin life cycle
  *
  * @author Greg Amerson
+ * @author Simon Jiang
  */
-public class LiferayServerCore extends LiferayCore
+@SuppressWarnings( "restriction" )
+public class LiferayServerCore extends Plugin
 {
 
     private static Map<String, IServerManagerConnection> connections = null;
@@ -63,14 +86,107 @@ public class LiferayServerCore extends LiferayCore
 
     private static ILiferayRuntimeStub[] runtimeStubs;
 
-    public static IStatus createErrorStatus( String msg )
+    private static PortalBundle[] portalBundles;
+
+//    private static Map<String, OsgiConnection> osgiConnections;
+//
+//    private static OsgiConnection getOsgiConnection( final IServer server )
+//    {
+//        OsgiConnection retval = null;
+//
+//        if( osgiConnections == null )
+//        {
+//            osgiConnections = new HashMap<String, OsgiConnection>();
+//
+//            ServerCore.addServerLifecycleListener( new IServerLifecycleListener()
+//            {
+//                public void serverAdded( IServer server )
+//                {
+//                }
+//
+//                public void serverChanged( IServer server )
+//                {
+//                }
+//
+//                public void serverRemoved( IServer s )
+//                {
+//                    if( server.equals( s ) )
+//                    {
+//                        OsgiConnection service = osgiConnections.get( server.getId() );
+//
+//                        if( service != null )
+//                        {
+//                            service = null;
+//                            osgiConnections.remove( server.getId() );
+//                        }
+//                    }
+//                }
+//            });
+//        }
+//
+//        retval = osgiConnections.get( server.getId() );
+//
+//        if( retval == null )
+//        {
+//            retval = new OsgiConnectionImpl( 33133 );
+//
+//            osgiConnections.put( server.getId(), retval );
+//
+//            server.addServerListener( new IServerListener()
+//            {
+//                public void serverChanged( ServerEvent event )
+//                {
+//                    osgiConnections.remove( server.getId() );
+//                }
+//            });
+//        }
+//
+//        return retval;
+//    }
+
+    public static IStatus createErrorStatus( Exception e )
+    {
+        return error( e.getMessage(), e );
+    }
+
+    public static IStatus error( String msg )
     {
         return createErrorStatus( PLUGIN_ID, msg );
     }
 
-    public static IStatus createInfoStatus( String msg )
+    public static IStatus createErrorStatus( String pluginId, String msg )
+    {
+        return new Status( IStatus.ERROR, pluginId, msg );
+    }
+
+    public static IStatus createErrorStatus( String pluginId, String msg, Throwable e )
+    {
+        return new Status( IStatus.ERROR, pluginId, msg, e );
+    }
+
+    public static IStatus error( String msg, Throwable t )
+    {
+        return new Status( IStatus.ERROR, PLUGIN_ID, msg, t );
+    }
+
+    public static IStatus info( String msg )
     {
         return new Status( IStatus.INFO, PLUGIN_ID, msg );
+    }
+
+    public static IStatus createWarningStatus( String message )
+    {
+        return new Status( IStatus.WARNING, PLUGIN_ID, message );
+    }
+
+    public static IStatus createWarningStatus( String message, String id )
+    {
+        return new Status( IStatus.WARNING, id, message );
+    }
+
+    public static IStatus createWarningStatus( String message, String id, Exception e )
+    {
+        return new Status( IStatus.WARNING, id, message, e );
     }
 
     /**
@@ -149,11 +265,44 @@ public class LiferayServerCore extends LiferayCore
         return pluginPublishers;
     }
 
+    public static PortalLaunchParticipant[] getPortalLaunchParticipants()
+    {
+        PortalLaunchParticipant[] retval = null;
+
+        final IConfigurationElement[] elements =
+            Platform.getExtensionRegistry().getConfigurationElementsFor(
+                "com.liferay.ide.server.core.portalLaunchParticipants" );
+
+        try
+        {
+            final List<PortalLaunchParticipant> participants = new ArrayList<PortalLaunchParticipant>();
+
+            for( IConfigurationElement element : elements )
+            {
+                final Object o = element.createExecutableExtension( "class" ); //$NON-NLS-1$
+
+                if( o instanceof PortalLaunchParticipant )
+                {
+                    PortalLaunchParticipant participant = (PortalLaunchParticipant) o;
+                    participants.add( participant );
+                }
+            }
+
+            retval = participants.toArray( new PortalLaunchParticipant[0] );
+        }
+        catch( Exception e )
+        {
+            logError( "Unable to get portal launch participants", e ); //$NON-NLS-1$
+        }
+
+        return retval;
+    }
+
     public static URL getPortalSupportLibURL()
     {
         try
         {
-            return FileLocator.toFileURL( LiferayServerCore.getPluginEntry( "/portal-support/portal-support.jar" ) ); //$NON-NLS-1$
+            return FileLocator.toFileURL( LiferayServerCore.getPluginEntry( "/portal-support/portal-support.jar" ) );
         }
         catch( IOException e )
         {
@@ -164,49 +313,34 @@ public class LiferayServerCore extends LiferayCore
 
     public static IServerManagerConnection getRemoteConnection( final IRemoteServer server )
     {
+        IServerManagerConnection retval = null;
+
         if( connections == null )
         {
             connections = new HashMap<String, IServerManagerConnection>();
-
-            ServerCore.addServerLifecycleListener( new IServerLifecycleListener()
-            {
-
-                public void serverAdded( IServer server )
-                {
-                }
-
-                public void serverChanged( IServer server )
-                {
-                }
-
-                public void serverRemoved( IServer s )
-                {
-                    if( server.equals( s ) )
-                    {
-                        IServerManagerConnection service = connections.get( server.getId() );
-
-                        if( service != null )
-                        {
-                            service = null;
-                            connections.put( server.getId(), null );
-                        }
-                    }
-                }
-            } );
         }
 
-        IServerManagerConnection service = connections.get( server.getId() );
-
-        if( service == null )
+        if( server != null )
         {
-            service = new ServerManagerConnection();
+            IServerManagerConnection service = connections.get( server.getId() );
 
-            updateConnectionSettings( server, service );
+            if( service == null )
+            {
+                service = new ServerManagerConnection();
 
-            connections.put( server.getId(), service );
+                updateConnectionSettings( server, service );
+
+                connections.put( server.getId(), service );
+            }
+            else
+            {
+                updateConnectionSettings( server, service );
+            }
+
+            retval = service;
         }
 
-        return service;
+        return retval;
     }
 
     public static IRuntimeDelegateValidator[] getRuntimeDelegateValidators()
@@ -265,6 +399,67 @@ public class LiferayServerCore extends LiferayCore
         return retval;
     }
 
+    public static PortalBundle getPortalBundle( PortalRuntime portalRuntime , String type )
+    {
+        PortalBundle retval = null;
+
+        if( type != null )
+        {
+            for( PortalBundle portalBundle : getPortalBundles() )
+            {
+                if( type.equals( portalBundle.getType() ) )
+                {
+                    try
+                    {
+                        retval =
+                            portalBundle.getClass().getConstructor( PortalRuntime.class ).newInstance( portalRuntime );
+                    }
+                    catch( Exception e )
+                    {
+                        logError( "Unable to get portal bundle class", e );
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        return retval;
+    }
+
+    public static PortalBundle[] getPortalBundles()
+    {
+        if( portalBundles == null )
+        {
+            final IConfigurationElement[] elements =
+                Platform.getExtensionRegistry().getConfigurationElementsFor( PortalBundle.EXTENSION_ID );
+
+            try
+            {
+                List<PortalBundle> bundles = new ArrayList<PortalBundle>();
+
+                for( IConfigurationElement element : elements )
+                {
+                    final Object o = element.createExecutableExtension( "class" );
+
+                    if( o instanceof PortalBundle )
+                    {
+                        PortalBundle portalBundle = (PortalBundle) o;
+                        bundles.add( portalBundle );
+                    }
+                }
+
+                portalBundles = bundles.toArray( new PortalBundle[0] );
+            }
+            catch( Exception e )
+            {
+                logError( "Unable to get PortalBundle extensions", e ); //$NON-NLS-1$
+            }
+        }
+
+        return portalBundles;
+    }
+
     public static ILiferayRuntimeStub[] getRuntimeStubs()
     {
         if( runtimeStubs == null )
@@ -315,9 +510,34 @@ public class LiferayServerCore extends LiferayCore
         getDefault().getLog().log( new Status( IStatus.ERROR, PLUGIN_ID, e.getMessage(), e ) );
     }
 
-    public static void logError( String msg, Exception e )
+    public static void logError( IStatus status )
+    {
+        getDefault().getLog().log( status );
+    }
+
+    public static void logError( String msg )
+    {
+        logError( error( msg ) );
+    }
+
+    public static void logInfo( String msg )
+    {
+        logInfo( info( msg ) );
+    }
+
+    public static void logInfo( IStatus status )
+    {
+        getDefault().getLog().log( status );
+    }
+
+    public static void logError( String msg, Throwable e )
     {
         getDefault().getLog().log( new Status( IStatus.ERROR, PLUGIN_ID, msg, e ) );
+    }
+
+    public static void logError( Throwable t )
+    {
+        getDefault().getLog().log( new Status( IStatus.ERROR, PLUGIN_ID, t.getMessage(), t ) );
     }
 
     public static void updateConnectionSettings( IRemoteServer server )
@@ -364,12 +584,248 @@ public class LiferayServerCore extends LiferayCore
         return Status.OK_STATUS;
     }
 
+    private IRuntimeLifecycleListener runtimeLifecycleListener;
+
+    private ISDKListener sdkListener;
+
+    private IServerLifecycleListener serverLifecycleListener;
+
     /**
      * The constructor
      */
     public LiferayServerCore()
     {
     }
+
+    private boolean addRuntimeToMemento( IRuntime runtime, IMemento memento )
+    {
+        if( runtime instanceof Base )
+        {
+            final Base base = (Base) runtime;
+
+            try
+            {
+                final Method save = Base.class.getDeclaredMethod( "save", IMemento.class );
+
+                if( save != null )
+                {
+                    save.setAccessible( true );
+                    save.invoke( base, memento );
+                }
+
+                return true;
+            }
+            catch( Exception e )
+            {
+                LiferayServerCore.logError( "Unable to add runtime to memento", e );
+            }
+        }
+
+        return false;
+    }
+
+    private boolean addServerToMemento( IServer server, IMemento memento )
+    {
+        if( server instanceof Base )
+        {
+            final Base base = (Base) server;
+
+            try
+            {
+                final Method save = Base.class.getDeclaredMethod( "save", IMemento.class );
+
+                if( save != null )
+                {
+                    save.setAccessible( true );
+                    save.invoke( base, memento );
+                }
+
+                return true;
+            }
+            catch( Exception e )
+            {
+                LiferayServerCore.logError( "Unable to add server to memento", e );
+            }
+        }
+
+        return false;
+    }
+
+    private void copyMemento( IMemento from, IMemento to )
+    {
+        for( String name : from.getNames() )
+        {
+            to.putString( name, from.getString( name ) );
+        }
+    }
+
+    private synchronized void saveGlobalRuntimeSettings( IRuntime runtime )
+    {
+        final IRuntimeType runtimeType = runtime.getRuntimeType();
+
+        if( runtimeType != null && runtimeType.getId().startsWith( "com.liferay" ) )
+        {
+            try
+            {
+                LiferayCore.GLOBAL_SETTINGS_PATH.toFile().mkdirs();
+                final File runtimesGlobalFile =
+                    LiferayCore.GLOBAL_SETTINGS_PATH.append( "runtimes.xml" ).toFile();
+
+                final Set<IMemento> existing = new HashSet<IMemento>();
+
+                if( runtimesGlobalFile.exists() )
+                {
+                    try
+                    {
+                        final IMemento existingMemento =
+                            XMLMemento.loadMemento( new FileInputStream( runtimesGlobalFile ) );
+
+                        if( existingMemento != null )
+                        {
+                            final IMemento[] children = existingMemento.getChildren( "runtime" );
+
+                            if( ! CoreUtil.isNullOrEmpty( children ) )
+                            {
+                                for( IMemento child : children )
+                                {
+                                    final IPath loc = Path.fromPortableString( child.getString( "location" ) );
+
+                                    if( loc != null && loc.toFile().exists() )
+                                    {
+                                        boolean duplicate =
+                                            ServerCore.findRuntime( child.getString( "id" ) ) != null;
+
+                                        if( ! duplicate )
+                                        {
+                                            existing.add( child );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch( Exception e )
+                    {
+                    }
+                }
+
+                final Map<String, IMemento> mementos = new HashMap<String, IMemento>();
+
+                final XMLMemento runtimeMementos = XMLMemento.createWriteRoot( "runtimes" );
+
+                for( IMemento exist : existing )
+                {
+                    final IMemento copy = runtimeMementos.createChild( "runtime" );
+                    copyMemento( exist, copy );
+
+                    mementos.put( copy.getString( "id" ), copy );
+                }
+
+                for( IRuntime r : ServerCore.getRuntimes() )
+                {
+                    if( mementos.get( r.getId() ) == null && r.getRuntimeType() != null )
+                    {
+                        final IMemento rMemento = runtimeMementos.createChild( "runtime" );
+
+                        if( addRuntimeToMemento( r, rMemento ) )
+                        {
+                            mementos.put( r.getId(), rMemento );
+                        }
+                    }
+                }
+
+                final FileOutputStream fos = new FileOutputStream( runtimesGlobalFile );
+
+                runtimeMementos.save( fos );
+            }
+            catch( Exception e )
+            {
+                LiferayServerCore.logError( "Unable to save global runtime settings", e );
+            }
+        }
+    }
+
+    private synchronized void saveGlobalServerSettings( IServer server )
+    {
+        final IServerType serverType = server.getServerType();
+
+        if( serverType != null && serverType.getId().startsWith( "com.liferay" ) )
+        {
+            try
+            {
+                LiferayCore.GLOBAL_SETTINGS_PATH.toFile().mkdirs();
+                final File globalServersFile = LiferayCore.GLOBAL_SETTINGS_PATH.append( "servers.xml" ).toFile();
+                final Set<IMemento> existing = new HashSet<IMemento>();
+
+                if( globalServersFile.exists() )
+                {
+                    try
+                    {
+                        final IMemento existingMemento =
+                            XMLMemento.loadMemento( new FileInputStream( globalServersFile ) );
+
+                        if( existingMemento != null )
+                        {
+                            final IMemento[] children = existingMemento.getChildren( "server" );
+
+                            if( ! CoreUtil.isNullOrEmpty( children ) )
+                            {
+                                for( IMemento child : children )
+                                {
+                                    final boolean duplicate =
+                                        ServerCore.findServer( child.getString( "id" ) ) != null;
+
+                                    if( ! duplicate )
+                                    {
+                                        existing.add( child );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch( Exception e )
+                    {
+                    }
+                }
+
+                final Map<String, IMemento> mementos = new HashMap<String, IMemento>();
+
+                final XMLMemento serverMementos = XMLMemento.createWriteRoot( "servers" );
+
+                for( IMemento exist : existing )
+                {
+                    final IMemento copy = serverMementos.createChild( "server" );
+                    copyMemento( exist, copy );
+                    mementos.put( copy.getString( "id" ), copy );
+                }
+
+                for( IServer s : ServerCore.getServers() )
+                {
+                    if( mementos.get( s.getId() ) == null && s.getServerType() != null )
+                    {
+                        final IMemento sMemento = serverMementos.createChild( "server" );
+
+                        if( addServerToMemento( s, sMemento ) )
+                        {
+                            mementos.put( s.getId(), sMemento );
+                        }
+                    }
+                }
+
+                if( mementos.size() > 0 )
+                {
+                    final FileOutputStream fos = new FileOutputStream( globalServersFile );
+
+                    serverMementos.save( fos );
+                }
+            }
+            catch( Exception e )
+            {
+                LiferayServerCore.logError( "Unable to save global server settings", e );
+            }
+        }
+    }
+
 
     /*
      * (non-Javadoc)
@@ -378,9 +834,51 @@ public class LiferayServerCore extends LiferayCore
     public void start( BundleContext context ) throws Exception
     {
         super.start( context );
-
         plugin = this;
 
+        this.runtimeLifecycleListener = new IRuntimeLifecycleListener()
+        {
+            public void runtimeAdded( IRuntime runtime )
+            {
+                saveGlobalRuntimeSettings( runtime );
+            }
+
+            public void runtimeChanged( IRuntime runtime )
+            {
+                saveGlobalRuntimeSettings( runtime );
+            }
+
+            public void runtimeRemoved( IRuntime runtime )
+            {
+                saveGlobalRuntimeSettings( runtime );
+            }
+        };
+
+        this.serverLifecycleListener = new IServerLifecycleListener()
+        {
+            public void serverAdded( IServer server )
+            {
+                saveGlobalServerSettings( server );
+            }
+
+            public void serverChanged( IServer server )
+            {
+                saveGlobalServerSettings( server );
+            }
+
+            public void serverRemoved( IServer server )
+            {
+                saveGlobalServerSettings( server );
+
+                if( connections.get( server.getId() ) != null )
+                {
+                    connections.put( server.getId(), null );
+                }
+            }
+        };
+
+        ServerCore.addRuntimeLifecycleListener( this.runtimeLifecycleListener );
+        ServerCore.addServerLifecycleListener( this.serverLifecycleListener );
     }
 
     /*
@@ -390,8 +888,16 @@ public class LiferayServerCore extends LiferayCore
     public void stop( BundleContext context ) throws Exception
     {
         plugin = null;
-
         super.stop( context );
 
+        SDKManager.getInstance().removeSDKListener( this.sdkListener );
+        ServerCore.removeRuntimeLifecycleListener( runtimeLifecycleListener );
+        ServerCore.removeServerLifecycleListener( serverLifecycleListener );
     }
+
+    public static OsgiConnection newOsgiConnection( IServer server )
+    {
+        return new OsgiConnectionImpl( 33133 );
+    }
+
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -20,8 +20,9 @@ package com.liferay.ide.portlet.ui.action;
 import com.liferay.ide.portlet.ui.wizard.NewPortletWizard;
 
 import org.eclipse.jface.wizard.WizardDialog;
+import org.eclipse.sapphire.ui.Presentation;
 import org.eclipse.sapphire.ui.SapphireActionHandler;
-import org.eclipse.sapphire.ui.SapphireRenderingContext;
+import org.eclipse.sapphire.ui.forms.swt.SwtPresentation;
 
 /**
  * @author <a href="mailto:kamesh.sampath@hotmail.com">Kamesh Sampath</a>
@@ -34,12 +35,13 @@ public class AddPortletActionHandler extends SapphireActionHandler
      * @see org.eclipse.sapphire.ui.SapphireActionHandler#run(org.eclipse.sapphire.ui.SapphireRenderingContext)
      */
     @Override
-    protected Object run( SapphireRenderingContext context )
+    protected Object run( Presentation context )
     {
         NewPortletWizard newPortletWizard = new NewPortletWizard();
-        WizardDialog wizardDialog = new WizardDialog( context.getShell(), newPortletWizard );
+        WizardDialog wizardDialog = new WizardDialog( ( (SwtPresentation) context ).shell(), newPortletWizard );
         wizardDialog.create();
         wizardDialog.open();
+
         return null;
     }
 }

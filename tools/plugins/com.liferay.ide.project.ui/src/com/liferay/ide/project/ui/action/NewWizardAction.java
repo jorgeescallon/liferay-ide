@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -39,6 +39,7 @@ import org.eclipse.ui.PlatformUI;
 /**
  * @author Greg Amerson
  * @author Cindy Li
+ * @author Kuo Zhang
  */
 @SuppressWarnings( "restriction" )
 public class NewWizardAction extends Action implements Comparable
@@ -49,6 +50,8 @@ public class NewWizardAction extends Action implements Comparable
     public final static String ATT_ICON = "icon";//$NON-NLS-1$
 
     public final static String ATT_MENUINDEX = "menuIndex";//$NON-NLS-1$
+
+    public final static String ATT_ID = "id";//$NON-NLS-1$
 
     public final static String ATT_NAME = "name";//$NON-NLS-1$
 
@@ -87,6 +90,7 @@ public class NewWizardAction extends Action implements Comparable
         setToolTipText( description );
         setImageDescriptor( getIconFromConfig( fConfigurationElement ) );
         setMenuIndex( getMenuIndexFromConfig( fConfigurationElement ) );
+        setId( element.getAttribute( ATT_ID ) );
     }
 
     public int compareTo( Object o )

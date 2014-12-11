@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -25,20 +25,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.osgi.util.NLS;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.ElementList;
+import org.eclipse.sapphire.ElementType;
+import org.eclipse.sapphire.PropertyDef;
 import org.eclipse.sapphire.modeling.CapitalizationType;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelElementList;
-import org.eclipse.sapphire.modeling.ModelElementType;
-import org.eclipse.sapphire.modeling.ModelProperty;
+import org.eclipse.sapphire.ui.Presentation;
 import org.eclipse.sapphire.ui.SapphireAction;
 import org.eclipse.sapphire.ui.SapphireActionHandler;
 import org.eclipse.sapphire.ui.SapphireActionHandlerFactory;
 import org.eclipse.sapphire.ui.SapphireEditor;
-import org.eclipse.sapphire.ui.SapphireRenderingContext;
 import org.eclipse.sapphire.ui.def.ActionHandlerDef;
 import org.eclipse.sapphire.ui.def.ActionHandlerFactoryDef;
-import org.eclipse.sapphire.ui.form.editors.masterdetails.MasterDetailsContentNode;
-import org.eclipse.sapphire.ui.form.editors.masterdetails.MasterDetailsEditorPagePart;
+import org.eclipse.sapphire.ui.forms.MasterDetailsContentNodePart;
+import org.eclipse.sapphire.ui.forms.MasterDetailsEditorPagePart;
 
 /**
  * @author Kamesh Sampath
@@ -49,25 +49,25 @@ public class QuickActionsHandlerFactory extends SapphireActionHandlerFactory
 
     private static final class Handler extends SapphireActionHandler
     {
-        private final String strModelProperty;
+        private final String strProperty;
 
-        public Handler( String modelProperty )
+        public Handler( String Property )
         {
-            this.strModelProperty = modelProperty;
+            this.strProperty = Property;
         }
 
         @Override
         public void init( SapphireAction action, ActionHandlerDef def )
         {
             super.init( action, def );
-            final IModelElement rootModel = action.getPart().getModelElement();
-            final ModelProperty modelProperty = rootModel.type().property( this.strModelProperty );
+            final Element rootModel = action.getPart().getModelElement();
+            PropertyDef _property = rootModel.type().property( this.strProperty );
 
-            String labelText = modelProperty.getLabel( false, CapitalizationType.FIRST_WORD_ONLY, true );
+            String labelText = _property.getLabel( false, CapitalizationType.FIRST_WORD_ONLY, true );
             String actionLabel = getActionLabel( labelText );
             setLabel( actionLabel );
 
-            ModelElementType propModelElementType = modelProperty.getType();
+            ElementType propModelElementType = _property.getType();
             addImage( propModelElementType.image() );
         }
 
@@ -76,27 +76,27 @@ public class QuickActionsHandlerFactory extends SapphireActionHandlerFactory
          * @see org.eclipse.sapphire.ui.SapphireActionHandler#run(org.eclipse.sapphire.ui.SapphireRenderingContext)
          */
         @Override
-        protected Object run( SapphireRenderingContext context )
+        protected Object run( Presentation context )
         {
-            final IModelElement rootModel = context.getPart().getModelElement();
-            final ModelProperty modelProperty = rootModel.type().property( this.strModelProperty );
-            final Object obj = rootModel.read( modelProperty );
-            IModelElement mElement = null;
+            final Element rootModel = context.part().getModelElement();
+            final PropertyDef _property = rootModel.type().property( this.strProperty );
+            final Object obj = rootModel.property( _property );
+            Element mElement = null;
 
-            if( obj instanceof ModelElementList<?> )
+            if( obj instanceof ElementList<?> )
             {
-                ModelElementList<?> list = (ModelElementList<?>) obj;
+                ElementList<?> list = (ElementList<?>) obj;
                 mElement = list.insert();
             }
             else
             {
-                throw new UnsupportedOperationException( Msgs.bind( Msgs.unsuportedOperation, this.strModelProperty ) );
+                throw new UnsupportedOperationException( Msgs.bind( Msgs.unsuportedOperation, this.strProperty ) );
             }
 
-            // Select the ndoe
+            // Select the node
             final MasterDetailsEditorPagePart page = getPart().nearest( MasterDetailsEditorPagePart.class );
-            final MasterDetailsContentNode root = page.outline().getRoot();
-            final MasterDetailsContentNode node = root.findNode( mElement );
+            final MasterDetailsContentNodePart root = page.outline().getRoot();
+            final MasterDetailsContentNodePart node = root.findNode( mElement );
 
             if( node != null )
             {
@@ -138,9 +138,9 @@ public class QuickActionsHandlerFactory extends SapphireActionHandlerFactory
 
         for( int i = 0; i < this.modelProperties.length; i++ )
         {
-            String modelProperty = this.modelProperties[i];
+            String Property = this.modelProperties[i];
 
-            if( modelProperty != null && "Portlets".equalsIgnoreCase( modelProperty ) && isPartInLiferayProject() ) //$NON-NLS-1$
+            if( Property != null && "Portlets".equalsIgnoreCase( Property ) && isPartInLiferayProject() ) //$NON-NLS-1$
             {
                 SapphireActionHandler handler = new CreateLiferayPortletActionHandler();
                 handler.init( this.getAction(), null );
@@ -151,7 +151,7 @@ public class QuickActionsHandlerFactory extends SapphireActionHandlerFactory
             }
             else
             {
-                listOfHandlers.add( new Handler( modelProperty ) );
+                listOfHandlers.add( new Handler( Property ) );
             }
         }
 

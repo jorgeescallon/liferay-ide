@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,7 +15,7 @@
 
 package com.liferay.ide.project.ui.action.sdk;
 
-import com.liferay.ide.project.ui.ProjectUIPlugin;
+import com.liferay.ide.project.ui.ProjectUI;
 import com.liferay.ide.sdk.core.SDK;
 import com.liferay.ide.sdk.core.SDKUtil;
 import com.liferay.ide.server.util.ServerUtil;
@@ -84,13 +84,13 @@ public abstract class SDKCommandAction extends AbstractObjectAction
 
                             Map<String, String> appServerProperties = ServerUtil.configureAppServerProperties( p );
 
-                            sdk.runCommand( p, buildFile, getSDKCommand(), null, appServerProperties );
+                            sdk.runCommand( p, buildFile, getSDKCommand(), null, appServerProperties, monitor );
 
                             p.refreshLocal( IResource.DEPTH_INFINITE, monitor );
                         }
                         catch( Exception e )
                         {
-                            return ProjectUIPlugin.createErrorStatus( "Error running SDK command " + getSDKCommand(), e ); //$NON-NLS-1$
+                            return ProjectUI.createErrorStatus( "Error running SDK command " + getSDKCommand(), e ); //$NON-NLS-1$
                         }
 
                         return Status.OK_STATUS;

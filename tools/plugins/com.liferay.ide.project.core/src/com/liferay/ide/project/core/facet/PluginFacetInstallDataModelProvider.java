@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -16,7 +16,7 @@
 package com.liferay.ide.project.core.facet;
 
 import com.liferay.ide.core.util.CoreUtil;
-import com.liferay.ide.project.core.LiferayProjectCore;
+import com.liferay.ide.project.core.ProjectCore;
 import com.liferay.ide.sdk.core.SDK;
 import com.liferay.ide.sdk.core.SDKManager;
 
@@ -92,6 +92,7 @@ public abstract class PluginFacetInstallDataModelProvider extends FacetInstallDa
         propNames.add( LIFERAY_SDK_NAME );
         propNames.add( SETUP_DEFAULT_OUTPUT_LOCATION );
         propNames.add( SETUP_EXT_CLASSPATH );
+        propNames.add( UPDATE_BUILD_XML );
 
         return propNames;
     }
@@ -119,14 +120,14 @@ public abstract class PluginFacetInstallDataModelProvider extends FacetInstallDa
 
             if( CoreUtil.isNullOrEmpty( sdkName ) )
             {
-                return LiferayProjectCore.createErrorStatus( Msgs.noPluginSDKConfigured );
+                return ProjectCore.createErrorStatus( Msgs.noPluginSDKConfigured );
             }
 
             SDK sdk = SDKManager.getInstance().getSDK( sdkName );
 
             if( sdk == null )
             {
-                return LiferayProjectCore.createErrorStatus( NLS.bind( Msgs.pluginSDKNotDefined, sdkName ) );
+                return ProjectCore.createErrorStatus( NLS.bind( Msgs.pluginSDKNotDefined, sdkName ) );
             }
 
             return Status.OK_STATUS;

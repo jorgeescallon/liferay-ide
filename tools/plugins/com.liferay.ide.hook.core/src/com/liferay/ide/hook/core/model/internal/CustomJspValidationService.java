@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -15,6 +15,7 @@
 
 package com.liferay.ide.hook.core.model.internal;
 
+import com.liferay.ide.core.ILiferayPortal;
 import com.liferay.ide.core.ILiferayProject;
 import com.liferay.ide.core.LiferayCore;
 import com.liferay.ide.hook.core.HookCore;
@@ -25,13 +26,13 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.osgi.util.NLS;
+import org.eclipse.sapphire.Element;
+import org.eclipse.sapphire.Property;
+import org.eclipse.sapphire.Value;
+import org.eclipse.sapphire.ValueProperty;
 import org.eclipse.sapphire.modeling.CapitalizationType;
-import org.eclipse.sapphire.modeling.IModelElement;
-import org.eclipse.sapphire.modeling.ModelProperty;
 import org.eclipse.sapphire.modeling.Status;
-import org.eclipse.sapphire.modeling.Value;
-import org.eclipse.sapphire.modeling.ValueProperty;
-import org.eclipse.sapphire.modeling.util.NLS;
 import org.eclipse.sapphire.services.ValidationService;
 
 /**
@@ -48,13 +49,18 @@ public class CustomJspValidationService extends ValidationService
         {
             try
             {
-                final IModelElement element = context().find( IModelElement.class );
+                final Element element = context().find( Element.class );
                 final IProject project = element.nearest( Hook.class ).adapt( IFile.class ).getProject();
                 final ILiferayProject liferayProject = LiferayCore.create( project );
 
                 if( liferayProject != null )
                 {
-                    this.portalDir = liferayProject.getAppServerPortalDir();
+                    final ILiferayPortal portal = liferayProject.adapt( ILiferayPortal.class );
+
+                    if( portal != null )
+                    {
+                        this.portalDir = portal.getAppServerPortalDir();
+                    }
                 }
             }
             catch( Exception e )
@@ -68,11 +74,11 @@ public class CustomJspValidationService extends ValidationService
 
     private boolean isValidPortalJsp( Value<?> value )
     {
-        String customJsp = value.getContent().toString();
+        String customJsp = value.content().toString();
 
         IPath customJspPath = getPortalDir().append( customJsp );
 
-        if( customJspPath.toFile().exists() )
+        if( customJspPath != null && customJspPath.toFile().exists() )
         {
             return true;
         }
@@ -82,7 +88,7 @@ public class CustomJspValidationService extends ValidationService
 
     private boolean isValidProjectJsp( Value<?> value )
     {
-        String customJsp = value.getContent().toString();
+        String customJsp = value.content().toString();
 
         IFolder customFolder = HookUtil.getCustomJspFolder( hook(), project() );
 
@@ -111,14 +117,14 @@ public class CustomJspValidationService extends ValidationService
 
     private boolean isValueEmpty( Value<?> value )
     {
-        return value.getContent( false ) == null;
+        return value.content( false ) == null;
     }
 
     @Override
-    public Status validate()
+    public Status compute()
     {
-        final Value<?> value = (Value<?>) context( IModelElement.class ).read( context( ModelProperty.class ) );
-        final ValueProperty property = value.getProperty();
+        final Value<?> value = (Value<?>) context( Element.class ).property( context( Property.class ).definition() );
+        final ValueProperty property = value.definition();
         final String label = property.getLabel( true, CapitalizationType.NO_CAPS, false );
 
         if( isValueEmpty( value ) )

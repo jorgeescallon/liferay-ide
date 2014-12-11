@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2000-2013 Liferay, Inc. All rights reserved.
+ * Copyright (c) 2000-present Liferay, Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the Free
@@ -20,8 +20,8 @@ import com.liferay.ide.service.core.job.BuildWSDDJob;
 import com.liferay.ide.service.ui.ServiceUIUtil;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.sapphire.ui.Presentation;
 import org.eclipse.sapphire.ui.SapphireActionHandler;
-import org.eclipse.sapphire.ui.SapphireRenderingContext;
 
 /**
  * @author Gregory Amerson
@@ -30,9 +30,9 @@ public class BuildWSDDActionHandler extends SapphireActionHandler
 {
 
     @Override
-    protected Object run( SapphireRenderingContext context )
+    protected Object run( Presentation context )
     {
-        IFile file = context.getPart().getModelElement().adapt( IFile.class );
+        IFile file = context.part().getModelElement().adapt( IFile.class );
 
         if( file != null && file.exists() )
         {

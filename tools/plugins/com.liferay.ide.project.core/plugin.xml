@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.4"?>
 <plugin>
-   <extension-point id="sdkTemplates" name="%sdk.templates.name" schema="schema/sdkTemplates.exsd"/>
-   <extension-point id="portletFrameworkWizardProviders" name="%portlet.plugin.framework.wizard.providers.name" schema="schema/portletFrameworkWizardProviders.exsd"/>
+   <extension-point id="portletFrameworks" name="%portlet.plugin.frameworks.name" schema="schema/portletFrameworks.exsd"/>
+   <extension-point id="liferayDescriptorHelpers" name="%liferay.descriptor.helpers.name" schema="schema/liferayDescriptorHelpers.exsd"/>
+   <extension-point id="upgradeProjectHandlers" name="%upgrade.project.handlers.name" schema="schema/upgradeProjectHandlers.exsd"/>
 
    <extension
          point="org.eclipse.wst.common.project.facet.core.facets">
@@ -12,7 +13,7 @@
             Liferay Plugins
          </label>
          <description>
-            Liferay Portal Plugin facets including, portlets, hooks, ext, themes, and layout templates.
+            Liferay Portal Plugin facets including, portlets, hooks, ext, themes, layout, and web templates.
          </description>
       </category>
 
@@ -22,7 +23,7 @@
             Liferay Portlet
          </label>
          <description>
-            Portlet plugin for Liferay portal.  Version cooresponds to Portal version.
+            Portlet plugin for Liferay portal.  Version corresponds to Portal version.
          </description>
          <member
                category="liferay.plugins">
@@ -90,7 +91,7 @@
             Liferay Hook
          </label>
          <description>
-            Hook plugin for Liferay portal.  Version cooresponds to Portal version.
+            Hook plugin for Liferay portal.  Version corresponds to Portal version.
          </description>
          <member
                category="liferay.plugins">
@@ -158,7 +159,7 @@
             Liferay Ext
          </label>
          <description>
-            Ext plugin for Liferay portal.  Version cooresponds to Portal version.
+            Ext plugin for Liferay portal.  Version corresponds to Portal version.
          </description>
          <member
                category="liferay.plugins">
@@ -219,6 +220,74 @@
                facet="liferay.ext">
          </fixed>
       </template>
+
+      <project-facet
+            id="liferay.web">
+         <label>
+            Liferay Web
+         </label>
+         <description>
+            Web plugin for Liferay portal.  Version corresponds to Portal version.
+         </description>
+         <member
+               category="liferay.plugins">
+         </member>
+         <default-version
+               version="6.0">
+         </default-version>
+      </project-facet>
+      <project-facet-version
+            facet="liferay.web"
+            version="6.0">
+         <constraint>
+            <and>
+               <requires
+                     facet="jst.java"
+                     version="[5.0">
+               </requires>
+               <requires
+                     facet="jst.web"
+                     version="[2.3">
+               </requires>
+            </and>
+         </constraint>
+      </project-facet-version>
+      <action
+            facet="liferay.web"
+            id="liferay.web.install"
+            type="install"
+            version="[6.0">
+         <delegate
+               class="com.liferay.ide.project.core.facet.WebPluginFacetInstall">
+         </delegate>
+         <config-factory
+               class="com.liferay.ide.project.core.facet.WebPluginFacetInstallDataModelProvider">
+         </config-factory>
+      </action>
+      <action
+            facet="liferay.web"
+            id="liferay.web.uninstall"
+            type="uninstall"
+            version="[6.0">
+         <delegate
+               class="com.liferay.ide.project.core.facet.WebPluginFacetUninstall">
+         </delegate>
+      </action>
+      <template
+            id="liferay.web.template">
+         <label>
+            Liferay Web Plugin Project
+         </label>
+         <fixed
+               facet="jst.java">
+         </fixed>
+         <fixed
+               facet="jst.web">
+         </fixed>
+         <fixed
+               facet="liferay.web">
+         </fixed>
+      </template>
    </extension>
 
    <extension
@@ -233,7 +302,7 @@
          </description>
          <facet
                id="jst.java"
-               version="5.0">
+               version="1.6">
          </facet>
          <facet
                id="jst.web"
@@ -255,7 +324,7 @@
          </description>
          <facet
                id="jst.java"
-               version="5.0">
+               version="1.6">
          </facet>
          <facet
                id="jst.web"
@@ -277,7 +346,7 @@
          </description>
          <facet
                id="jst.java"
-               version="5.0">
+               version="1.6">
          </facet>
          <facet
                id="jst.web"
@@ -285,6 +354,28 @@
          </facet>
          <facet
                id="liferay.ext"
+               version="6.0">
+         </facet>
+      </static-preset>
+
+      <static-preset
+            id="liferay.web.preset">
+         <label>
+            Liferay web plugin 6.0 preset
+         </label>
+         <description>
+            Preset for Liferay 6.0 web plugin
+         </description>
+         <facet
+               id="jst.java"
+               version="1.6">
+         </facet>
+         <facet
+               id="jst.web"
+               version="2.5">
+         </facet>
+         <facet
+               id="liferay.web"
                version="6.0">
          </facet>
       </static-preset>
@@ -394,6 +485,40 @@
          </action>
       </provider>
 
+      <provider
+            id="com.liferay.ide.eclipse.plugin.web.libraryProvider">
+         <label>
+            Liferay web plugin library
+         </label>
+         <enablement>
+            <with
+                  variable="requestingProjectFacet">
+               <test
+                     forcePluginActivation="true"
+                     property="org.eclipse.wst.common.project.facet.core.projectFacet"
+                     value="liferay.web">
+               </test>
+            </with>
+            <with
+                  variable="context">
+               <test
+                     forcePluginActivation="true"
+                     property="com.liferay.ide.project.core.isLiferayRuntime"
+                     value="true">
+               </test>
+            </with>
+         </enablement>
+         <action
+               type="INSTALL">
+            <operation
+                  class="com.liferay.ide.project.core.library.WebPluginLibraryInstallOperation">
+            </operation>
+            <config
+                  class="org.eclipse.jst.common.project.facet.core.libprov.LibraryProviderOperationConfig">
+            </config>
+         </action>
+      </provider>
+
    </extension>
    <extension
          point="org.eclipse.core.expressions.propertyTesters">
@@ -404,7 +529,15 @@
             properties="isLiferayRuntime"
             type="org.eclipse.jst.common.project.facet.core.libprov.EnablementExpressionContext">
       </propertyTester>
+      <propertyTester
+            class="com.liferay.ide.project.core.BundleProjectPropertyTester"
+            id="com.liferay.ide.project.core.isBundleProject"
+            namespace="com.liferay.ide.project.core"
+            properties="isBundleProject"
+            type="java.lang.Object" >
+      </propertyTester>
    </extension>
+
    <extension
          point="org.eclipse.wst.common.project.facet.core.listeners">
       <listener
@@ -423,10 +556,82 @@
    <extension
          point="com.liferay.ide.core.liferayProjectProviders">
       <liferayProjectProvider
-            class="com.liferay.ide.project.core.LiferayRuntimeProjectProvider"
+            class="com.liferay.ide.project.core.PluginsSDKProjectProvider"
+            default="true"
+            displayName="Ant (liferay-plugins-sdk)"
             id="com.liferay.ide.project.core.runtimeProjectProvider"
-            priority="normal">
+            priority="normal"
+            shortName="ant">
       </liferayProjectProvider>
+   </extension>
+   <extension
+         id="LiferayProjectValidator"
+         name="%liferay.project.validator.name"
+         point="org.eclipse.wst.common.project.facet.core.validators">
+      <validator
+            class="com.liferay.ide.project.core.PluginsSDKProjectRuntimeValidator">
+      </validator>
+   </extension>
+   <extension
+         id="LiferayProjectMarker"
+         name="%liferay.project.problem.name"
+         point="org.eclipse.core.resources.markers">
+      <super
+            type="org.eclipse.core.resources.problemmarker">
+      </super>
+      <persistent
+            value="true">
+      </persistent>
+   </extension>
+
+   <extension point="com.liferay.ide.project.core.upgradeProjectHandlers">
+      <upgradeProjectHandler
+            class="com.liferay.ide.project.core.upgrade.UpgradeMetadataHandler"
+            name="MetadataUpgrade"
+            description="Update all deployment descriptor metadata"
+            id="com.liferay.ide.project.core.upgradeMetadataHandler">
+      </upgradeProjectHandler>
+      <upgradeProjectHandler
+            class="com.liferay.ide.project.core.upgrade.UpgradeRuntimeHandler"
+            name="RuntimeUpgrade"
+            description="Update targeted runtime to selected version"
+            id="com.liferay.ide.project.core.upgradeRuntimeHandler">
+      </upgradeProjectHandler>
+   </extension>
+   <extension
+         point="org.eclipse.wst.server.core.moduleFactories">
+      <moduleFactory
+            class="com.liferay.ide.project.core.BundleFactoryDelegate"
+            id="com.liferay.ide.project.core.bundleFactory"
+            projects="true">
+         <moduleType
+           types="liferay.bundle"
+           versions="1.0">
+         </moduleType>
+         <enablement>
+            <or>
+                <test property="com.liferay.ide.project.core.isBundleProject" value="true"/>
+            </or>
+         </enablement>
+      </moduleFactory>
+   </extension>
+   <extension
+         id="bundleNature"
+         point="org.eclipse.core.resources.natures">
+      <runtime>
+         <run
+               class="com.liferay.ide.project.core.BundleProjectNature">
+         </run>
+      </runtime>
+   </extension>
+   <extension
+         id="bundleNature"
+         point="org.eclipse.core.resources.natures">
+      <runtime>
+         <run
+               class="com.liferay.ide.project.core.ProjectNature1">
+         </run>
+      </runtime>
    </extension>
 
    <!--
